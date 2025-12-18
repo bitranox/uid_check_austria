@@ -169,39 +169,7 @@ Die Ergebnisse werden angezeigt und eine E-Mail mit den Ergebnissen wird an die 
 
 ## BMF-Rückgabecodes
 
-### Session-/Authentifizierungscodes
-
-| Code | Bedeutung                                         | Schweregrad | Wiederholbar |
-|------|---------------------------------------------------|-------------|--------------|
-| 0    | Erfolg                                            | success     | -            |
-| -1   | Sitzung ungültig oder abgelaufen                  | error       | Nein         |
-| -2   | Systemwartung                                     | warning     | Ja           |
-| -3   | Technischer Fehler                                | error       | Ja           |
-| -4   | Zugangscodes sind nicht gültig                    | critical    | Nein         |
-| -5   | Benutzer wegen falscher Anmeldeversuche gesperrt  | critical    | Nein         |
-| -6   | Benutzer ist gesperrt                             | critical    | Nein         |
-| -7   | Benutzer ist kein Webservice-Benutzer             | critical    | Nein         |
-| -8   | Teilnehmer gesperrt oder nicht autorisiert        | critical    | Nein         |
-
-### UID-Abfragecodes
-
-| Code | Bedeutung                                       | Schweregrad | Wiederholbar |
-|------|-------------------------------------------------|-------------|--------------|
-| 0    | UID ist gültig                                  | success     | -            |
-| 1    | UID ist ungültig                                | warning     | Nein         |
-| 4    | Falsches UID-Format                             | error       | Nein         |
-| 5    | Ungültige Anfragesteller-UID                    | error       | Nein         |
-| 10   | Mitgliedstaat verbietet Abfrage                 | warning     | Nein         |
-| 11   | Nicht autorisiert für Anfragesteller-UID        | error       | Nein         |
-| 12   | UID noch nicht abfragbar                        | warning     | Ja           |
-| 101  | UID beginnt nicht mit ATU                       | error       | Nein         |
-| 103  | Umsatzsteuergruppe (CZ) - Sonderbehandlung      | warning     | Nein         |
-| 104  | Umsatzsteuergruppe (SK) - Sonderbehandlung      | warning     | Nein         |
-| 105  | Muss über FinanzOnline-Portal abgefragt werden  | error       | Nein         |
-| 1511 | Dienst nicht verfügbar                          | critical    | Ja           |
-| 1512 | Zu viele Anfragen (Serverauslastung)            | warning     | Ja           |
-| 1513 | Ratenlimit: 2 Abfragen/UID/Tag überschritten    | warning     | Ja           |
-| 1514 | Ratenlimit: Anfragesteller-Limit überschritten  | warning     | Ja           |
+Eine vollständige Liste aller BMF-Rückgabecodes finden Sie in der **[Rückgabecode-Referenz (RETURNCODES_de.md)](RETURNCODES_de.md)**.
 
 ---
 
@@ -211,6 +179,7 @@ Die Ergebnisse werden angezeigt und eine E-Mail mit den Ergebnissen wird an die 
 - [Konfigurationsreferenz (DE)](CONFIGURATION_de.md) | [Configuration Reference (EN)](CONFIGURATION_en.md)
 - [CLI-Referenz (DE)](CLI_REFERENCE_de.md) | [CLI Reference (EN)](CLI_REFERENCE_en.md)
 - [Python-API-Referenz (DE)](API_REFERENCE_de.md) | [Python API Reference (EN)](API_REFERENCE_en.md)
+- [BMF-Rückgabecodes (DE)](RETURNCODES_de.md) | [BMF Return Codes (EN)](RETURNCODES_en.md)
 - [Entwicklungshandbuch](DEVELOPMENT.md)
 - [Contributor-Leitfaden](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)

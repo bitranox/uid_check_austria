@@ -167,39 +167,7 @@ the results will be displayed and a email with the results will be sent to the c
 
 ## BMF Return Codes
 
-### Session/Authentication Codes
-
-| Code | Meaning                                     | Severity | Retryable |
-|------|---------------------------------------------|----------|-----------|
-| 0    | Success                                     | success  | -         |
-| -1   | Session invalid or expired                  | error    | No        |
-| -2   | System maintenance                          | warning  | Yes       |
-| -3   | Technical error                             | error    | Yes       |
-| -4   | Access codes are not valid                  | critical | No        |
-| -5   | User locked due to incorrect login attempts | critical | No        |
-| -6   | User is locked                              | critical | No        |
-| -7   | User is not a web service user              | critical | No        |
-| -8   | Participant locked or not authorized        | critical | No        |
-
-### UID Query Codes
-
-| Code | Meaning                                | Severity | Retryable |
-|------|----------------------------------------|----------|-----------|
-| 0    | UID is valid                           | success  | -         |
-| 1    | UID is invalid                         | warning  | No        |
-| 4    | Wrong UID format                       | error    | No        |
-| 5    | Invalid requester UID                  | error    | No        |
-| 10   | Member state forbids query             | warning  | No        |
-| 11   | Not authorized for requester UID       | error    | No        |
-| 12   | UID not yet queryable                  | warning  | Yes       |
-| 101  | UID doesn't start with ATU             | error    | No        |
-| 103  | VAT group (CZ) - special handling      | warning  | No        |
-| 104  | VAT group (SK) - special handling      | warning  | No        |
-| 105  | Must query via FinanzOnline portal     | error    | No        |
-| 1511 | Service unavailable                    | critical | Yes       |
-| 1512 | Too many queries (server load)         | warning  | Yes       |
-| 1513 | Rate limit: 2 queries/UID/day exceeded | warning  | Yes       |
-| 1514 | Rate limit: requester limit exceeded   | warning  | Yes       |
+For a complete list of all BMF return codes, see the **[Return Code Reference (RETURNCODES_en.md)](RETURNCODES_en.md)**.
 
 ---
 
@@ -209,6 +177,7 @@ the results will be displayed and a email with the results will be sent to the c
 - [Configuration Reference (EN)](CONFIGURATION_en.md) | [Konfigurationsreferenz (DE)](CONFIGURATION_de.md)
 - [CLI Reference (EN)](CLI_REFERENCE_en.md) | [CLI-Referenz (DE)](CLI_REFERENCE_de.md)
 - [Python API Reference (EN)](API_REFERENCE_en.md) | [Python-API-Referenz (DE)](API_REFERENCE_de.md)
+- [BMF Return Codes (EN)](RETURNCODES_en.md) | [BMF-Rückgabecodes (DE)](RETURNCODES_de.md)
 - [Development Handbook](DEVELOPMENT.md)
 - [Contributor Guide](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
