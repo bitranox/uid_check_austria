@@ -106,12 +106,12 @@ class TestQuery:
         mock_response.rc = 0
         mock_response.msg = "UID is valid"
         mock_response.name = "Test Company GmbH"
-        mock_response.adr_1 = "Test Company GmbH"
-        mock_response.adr_2 = "Test Street 123"
-        mock_response.adr_3 = "12345 Test City"
-        mock_response.adr_4 = ""
-        mock_response.adr_5 = ""
-        mock_response.adr_6 = "DE"
+        mock_response.adrz1 = "Test Company GmbH"
+        mock_response.adrz2 = "Test Street 123"
+        mock_response.adrz3 = "12345 Test City"
+        mock_response.adrz4 = ""
+        mock_response.adrz5 = ""
+        mock_response.adrz6 = "DE"
 
         with patch.object(query_client, "_get_client") as mock_get_client:
             mock_client = MagicMock()
@@ -287,12 +287,12 @@ class TestQuery:
         mock_response.rc = 0
         mock_response.msg = "UID valid"
         mock_response.name = None
-        mock_response.adr_1 = "Line 1"
-        mock_response.adr_2 = ""
-        mock_response.adr_3 = ""
-        mock_response.adr_4 = ""
-        mock_response.adr_5 = ""
-        mock_response.adr_6 = ""
+        mock_response.adrz1 = "Line 1"
+        mock_response.adrz2 = ""
+        mock_response.adrz3 = ""
+        mock_response.adrz4 = ""
+        mock_response.adrz5 = ""
+        mock_response.adrz6 = ""
 
         with patch.object(query_client, "_get_client") as mock_get_client:
             mock_client = MagicMock()
@@ -314,12 +314,12 @@ class TestQuery:
         mock_response.rc = 0
         mock_response.msg = "UID valid"
         mock_response.name = "Company"
-        mock_response.adr_1 = None
-        mock_response.adr_2 = None
-        mock_response.adr_3 = None
-        mock_response.adr_4 = None
-        mock_response.adr_5 = None
-        mock_response.adr_6 = None
+        mock_response.adrz1 = None
+        mock_response.adrz2 = None
+        mock_response.adrz3 = None
+        mock_response.adrz4 = None
+        mock_response.adrz5 = None
+        mock_response.adrz6 = None
 
         with patch.object(query_client, "_get_client") as mock_get_client:
             mock_client = MagicMock()
@@ -373,12 +373,12 @@ class TestQuery:
         mock_response.rc = 0
         mock_response.msg = "Valid"
         mock_response.name = "Company"
-        mock_response.adr_1 = ""
-        mock_response.adr_2 = ""
-        mock_response.adr_3 = ""
-        mock_response.adr_4 = ""
-        mock_response.adr_5 = ""
-        mock_response.adr_6 = ""
+        mock_response.adrz1 = ""
+        mock_response.adrz2 = ""
+        mock_response.adrz3 = ""
+        mock_response.adrz4 = ""
+        mock_response.adrz5 = ""
+        mock_response.adrz6 = ""
 
         with patch.object(query_client, "_get_client") as mock_get_client:
             mock_client = MagicMock()

@@ -77,11 +77,13 @@ def _format_address_lines(address_lines: list[str]) -> list[str]:
 
 def _format_company_section(result: UidCheckResult) -> list[str]:
     """Format company information section if available."""
-    if not (result.is_valid and result.name):
+    if not result.has_company_info:
         return []
 
-    lines = ["", f"{_BOLD}{_('Company Information')}{_RESET}", "-" * 30, f"{_('Name:')}    {result.name}"]
-    if result.address:
+    lines = ["", f"{_BOLD}{_('Company Information')}{_RESET}", "-" * 30]
+    if result.name:
+        lines.append(f"{_('Name:')}    {result.name}")
+    if result.address and not result.address.is_empty:
         lines.extend(_format_address_lines(result.address.as_lines()))
     return lines
 
@@ -169,9 +171,11 @@ def format_json(result: UidCheckResult) -> str:
         "timestamp": result.timestamp.isoformat(),
     }
 
-    if result.name:
-        company: dict[str, Any] = {"name": result.name}
-        if result.address:
+    if result.has_company_info:
+        company: dict[str, Any] = {}
+        if result.name:
+            company["name"] = result.name
+        if result.address and not result.address.is_empty:
             company["address"] = {
                 "lines": result.address.as_lines(),
                 "text": result.address.as_text(),

@@ -381,12 +381,12 @@ def mock_soap_query_response() -> MagicMock:
     response.rc = 0
     response.msg = "UID is valid"
     response.name = "Test Company GmbH"
-    response.adr_1 = "Test Company GmbH"
-    response.adr_2 = "Test Street 123"
-    response.adr_3 = "12345 Test City"
-    response.adr_4 = ""
-    response.adr_5 = ""
-    response.adr_6 = "DE"
+    response.adrz1 = "Test Company GmbH"
+    response.adrz2 = "Test Street 123"
+    response.adrz3 = "12345 Test City"
+    response.adrz4 = ""
+    response.adrz5 = ""
+    response.adrz6 = "DE"
     return response
 
 

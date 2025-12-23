@@ -43,7 +43,7 @@ Enable Austrian businesses to programmatically verify EU VAT identification numb
   - `uid_tn`: Own Austrian UID (must start with `ATU`)
   - `uid`: Target EU VAT ID to verify
   - `stufe`: Level (`2` for Level 2 with name/address)
-- **Level 2 Response**: `rc`, `msg`, `name`, `adr_1` through `adr_6`
+- **Level 2 Response**: `rc`, `msg`, `name`, `adrz1` through `adrz6` (note: attribute names differ from documentation)
 
 ### 2.4 Return Codes
 | Code | Meaning | Severity |

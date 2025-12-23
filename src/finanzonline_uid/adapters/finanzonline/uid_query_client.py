@@ -79,10 +79,10 @@ def _extract_core_fields(response: Any, attrs: list[str]) -> dict[str, Any]:
 
 
 def _extract_address_lines(response: Any) -> list[str]:
-    """Extract non-empty address lines from response (adr_1 through adr_6)."""
+    """Extract non-empty address lines from response (adrz1 through adrz6)."""
     lines = []
     for i in range(1, 7):
-        value = getattr(response, f"adr_{i}", None)
+        value = getattr(response, f"adrz{i}", None)
         if value:
             lines.append(str(value))
     return lines
@@ -141,7 +141,10 @@ def _build_query_diagnostics(
 
 
 def _extract_address_line(response: Any, attr_name: str) -> str:
-    """Extract a single address line from response, defaulting to empty string."""
+    """Extract a single address line from response, defaulting to empty string.
+
+    Note: BMF returns address fields as adrz1-adrz6 (not adr_1-adr_6).
+    """
     return str(cast(str, getattr(response, attr_name, "")) or "")
 
 
@@ -153,15 +156,18 @@ def _extract_company_info(response: Any) -> tuple[str, Address | None]:
 
     Returns:
         Tuple of (company_name, address) from response.
+
+    Note:
+        BMF returns address fields as adrz1-adrz6 (not adr_1-adr_6 as documented).
     """
     name = str(cast(str, response.name) or "") if hasattr(response, "name") else ""
     address = Address(
-        line1=_extract_address_line(response, "adr_1"),
-        line2=_extract_address_line(response, "adr_2"),
-        line3=_extract_address_line(response, "adr_3"),
-        line4=_extract_address_line(response, "adr_4"),
-        line5=_extract_address_line(response, "adr_5"),
-        line6=_extract_address_line(response, "adr_6"),
+        line1=_extract_address_line(response, "adrz1"),
+        line2=_extract_address_line(response, "adrz2"),
+        line3=_extract_address_line(response, "adrz3"),
+        line4=_extract_address_line(response, "adrz4"),
+        line5=_extract_address_line(response, "adrz5"),
+        line6=_extract_address_line(response, "adrz6"),
     )
     return name, address
 

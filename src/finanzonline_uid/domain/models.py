@@ -235,14 +235,18 @@ class UidCheckRequest:
 class Address:
     """Company address from Level 2 UID verification.
 
-    FinanzOnline returns addresses in 6 lines (adr_1 through adr_6).
+    FinanzOnline returns addresses in 6 lines (adrz1 through adrz6).
     Empty lines are represented as empty strings.
 
+    Note:
+        BMF documentation refers to these as adr_1 through adr_6, but the
+        actual SOAP response uses adrz1 through adrz6.
+
     Attributes:
-        line1: First address line (typically company name).
+        line1: First address line (typically street address).
         line2: Second address line.
-        line3: Third address line.
-        line4: Fourth address line.
+        line3: Third address line (typically postal code).
+        line4: Fourth address line (typically city).
         line5: Fifth address line.
         line6: Sixth address line.
     """
