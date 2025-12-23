@@ -95,8 +95,27 @@ msgstr "ДЕЙСТВИТЕЛЕН"
 msgid "INVALID"
 msgstr "НЕДЕЙСТВИТЕЛЕН"
 
+msgid "UNAVAILABLE"
+msgstr "НЕДОСТУПЕН"
+
+msgid "RATE LIMITED"
+msgstr "ЛИМИТ ЗАПРОСОВ"
+
 msgid "ERROR"
 msgstr "ОШИБКА"
+
+# Subject status values
+msgid "Valid"
+msgstr "Действителен"
+
+msgid "Invalid"
+msgstr "Недействителен"
+
+msgid "Service Unavailable"
+msgstr "Сервис недоступен"
+
+msgid "Rate Limited"
+msgstr "Лимит запросов достигнут"
 
 # Labels
 msgid "UID Check Result"

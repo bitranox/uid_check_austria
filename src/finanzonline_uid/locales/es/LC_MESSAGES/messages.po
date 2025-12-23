@@ -95,8 +95,27 @@ msgstr "VÁLIDO"
 msgid "INVALID"
 msgstr "INVÁLIDO"
 
+msgid "UNAVAILABLE"
+msgstr "NO DISPONIBLE"
+
+msgid "RATE LIMITED"
+msgstr "LÍMITE DE CONSULTAS"
+
 msgid "ERROR"
 msgstr "ERROR"
+
+# Subject status values
+msgid "Valid"
+msgstr "Válido"
+
+msgid "Invalid"
+msgstr "Inválido"
+
+msgid "Service Unavailable"
+msgstr "Servicio no disponible"
+
+msgid "Rate Limited"
+msgstr "Límite de consultas alcanzado"
 
 # Labels
 msgid "UID Check Result"

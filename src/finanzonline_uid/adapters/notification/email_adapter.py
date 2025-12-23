@@ -24,9 +24,9 @@ from typing import TYPE_CHECKING
 
 from finanzonline_uid._datetime_utils import format_local_time
 from finanzonline_uid.domain.models import Diagnostics
-from finanzonline_uid.domain.return_codes import get_return_code_info
+from finanzonline_uid.domain.return_codes import ReturnCode, get_return_code_info
 from finanzonline_uid.enums import EmailFormat
-from finanzonline_uid.i18n import _
+from finanzonline_uid.i18n import N_, _
 from finanzonline_uid.mail import EmailConfig, send_email
 
 if TYPE_CHECKING:
@@ -43,6 +43,108 @@ _HTML_DOCTYPE = '<!DOCTYPE html>\n<html>\n<head>\n    <meta charset="utf-8">\n  
 _HTML_BODY_STYLE = "font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;"
 _HTML_TABLE_STYLE = "width: 100%; border-collapse: collapse; margin: 20px 0;"
 _HTML_TD_STYLE = "padding: 8px 15px;"
+
+
+# Return codes that indicate service/system unavailability (not UID validity issues)
+_SERVICE_UNAVAILABLE_CODES = frozenset(
+    {
+        ReturnCode.SERVICE_UNAVAILABLE.value,  # 1511
+        ReturnCode.TOO_MANY_QUERIES_SERVER.value,  # 1512
+        ReturnCode.SYSTEM_MAINTENANCE.value,  # -2
+    }
+)
+
+# Return codes that indicate rate limiting
+_RATE_LIMITED_CODES = frozenset(
+    {
+        ReturnCode.RATE_LIMIT_UID_EXCEEDED.value,  # 1513
+        ReturnCode.RATE_LIMIT_REQUESTER_EXCEEDED.value,  # 1514
+    }
+)
+
+# Status labels with translation markers
+_STATUS_VALID = N_("VALID")
+_STATUS_INVALID = N_("INVALID")
+_STATUS_UNAVAILABLE = N_("UNAVAILABLE")
+_STATUS_RATE_LIMITED = N_("RATE LIMITED")
+_STATUS_ERROR = N_("ERROR")
+
+
+def _get_result_status(return_code: int) -> str:
+    """Determine the appropriate status label based on return code.
+
+    Args:
+        return_code: FinanzOnline return code.
+
+    Returns:
+        Translated status label appropriate for the return code.
+
+    Examples:
+        >>> _get_result_status(0)  # doctest: +SKIP
+        'VALID'
+        >>> _get_result_status(1)  # doctest: +SKIP
+        'INVALID'
+        >>> _get_result_status(1511)  # doctest: +SKIP
+        'UNAVAILABLE'
+    """
+    if return_code == ReturnCode.UID_VALID.value:
+        return _(_STATUS_VALID)
+    if return_code == ReturnCode.UID_INVALID.value:
+        return _(_STATUS_INVALID)
+    if return_code in _SERVICE_UNAVAILABLE_CODES:
+        return _(_STATUS_UNAVAILABLE)
+    if return_code in _RATE_LIMITED_CODES:
+        return _(_STATUS_RATE_LIMITED)
+    return _(_STATUS_ERROR)
+
+
+def _get_result_subject_status(return_code: int) -> str:
+    """Get a descriptive subject status based on return code.
+
+    Args:
+        return_code: FinanzOnline return code.
+
+    Returns:
+        Short description suitable for email subject.
+
+    Examples:
+        >>> _get_result_subject_status(0)  # doctest: +SKIP
+        'Valid'
+        >>> _get_result_subject_status(1511)  # doctest: +SKIP
+        'Service Unavailable'
+    """
+    if return_code == ReturnCode.UID_VALID.value:
+        return _("Valid")
+    if return_code == ReturnCode.UID_INVALID.value:
+        return _("Invalid")
+    if return_code in _SERVICE_UNAVAILABLE_CODES:
+        return _("Service Unavailable")
+    if return_code in _RATE_LIMITED_CODES:
+        return _("Rate Limited")
+
+    # For other error codes, use the meaning from return code info
+    info = get_return_code_info(return_code)
+    return info.meaning
+
+
+def _get_status_color(return_code: int) -> str:
+    """Get the appropriate color for a status badge based on return code.
+
+    Args:
+        return_code: FinanzOnline return code.
+
+    Returns:
+        Hex color code for the status badge.
+    """
+    if return_code == ReturnCode.UID_VALID.value:
+        return "#28a745"  # green
+    if return_code == ReturnCode.UID_INVALID.value:
+        return "#dc3545"  # red
+    if return_code in _SERVICE_UNAVAILABLE_CODES:
+        return "#6c757d"  # gray
+    if return_code in _RATE_LIMITED_CODES:
+        return "#ffc107"  # yellow/warning
+    return "#dc3545"  # red for other errors
 
 
 def _get_html_footer() -> str:
@@ -100,7 +202,7 @@ def format_result_plain(result: UidCheckResult) -> str:
         Plain text representation of the result.
     """
     info = get_return_code_info(result.return_code)
-    status = _("VALID") if result.is_valid else _("INVALID")
+    status = _get_result_status(result.return_code)
 
     lines = [
         _("UID Verification Result (Stufe 2)"),
@@ -164,8 +266,8 @@ def _html_row(label: str, value: str, extra_td_style: str = "") -> str:
 
 def _build_result_table_rows(result: UidCheckResult, info: "ReturnCodeInfo") -> str:
     """Build HTML table rows for result display."""
-    status = _("VALID") if result.is_valid else _("INVALID")
-    status_color = "#28a745" if result.is_valid else "#dc3545"
+    status = _get_result_status(result.return_code)
+    status_color = _get_status_color(result.return_code)
     severity_color = _get_severity_color(info.severity.value)
     status_span = f'<span style="background-color: {status_color}; color: white; padding: 4px 12px; border-radius: 4px; font-weight: bold;">{status}</span>'
     severity_span = f'<span style="color: {severity_color}; font-weight: bold;">{info.severity.value.upper()}</span>'
@@ -487,8 +589,8 @@ class EmailNotificationAdapter:
             logger.warning("No recipients specified, skipping notification")
             return False
 
-        status = "VALID" if result.is_valid else "INVALID"
-        subject = f"UID Check Result: {result.uid} - {status}"
+        subject_status = _get_result_subject_status(result.return_code)
+        subject = f"UID Check Result: {result.uid} - {subject_status}"
 
         plain_body, html_body = self._get_body_parts(
             format_result_plain(result),

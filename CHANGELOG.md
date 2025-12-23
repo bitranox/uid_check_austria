@@ -5,6 +5,21 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 
 
+## [2.1.0] - 2025-12-23
+
+### Fixed
+
+- **Email notification status for service errors**: Return code 1511 (service unavailable) and similar codes no longer incorrectly show status as "INVALID". Email notifications now properly distinguish between:
+  - `VALID` / `Valid` - UID is valid (return code 0)
+  - `INVALID` / `Invalid` - UID is invalid (return code 1)
+  - `UNAVAILABLE` / `Service Unavailable` - Service temporarily unavailable (return codes 1511, 1512, -2)
+  - `RATE LIMITED` / `Rate Limited` - Rate limit exceeded (return codes 1513, 1514)
+  - `ERROR` / (return code meaning) - Other error codes
+
+### Added
+
+- **Translations for new status labels**: Added translations for UNAVAILABLE, RATE LIMITED, Valid, Invalid, Service Unavailable, and Rate Limited in German, Spanish, French, and Russian locales
+
 ## [2.0.1] - 2025-12-23
 
 ### Fixed

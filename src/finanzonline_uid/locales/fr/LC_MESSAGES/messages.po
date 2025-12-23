@@ -95,8 +95,27 @@ msgstr "VALIDE"
 msgid "INVALID"
 msgstr "INVALIDE"
 
+msgid "UNAVAILABLE"
+msgstr "INDISPONIBLE"
+
+msgid "RATE LIMITED"
+msgstr "LIMITE DE DÉBIT"
+
 msgid "ERROR"
 msgstr "ERREUR"
+
+# Subject status values
+msgid "Valid"
+msgstr "Valide"
+
+msgid "Invalid"
+msgstr "Invalide"
+
+msgid "Service Unavailable"
+msgstr "Service indisponible"
+
+msgid "Rate Limited"
+msgstr "Limite de débit atteinte"
 
 # Labels
 msgid "UID Check Result"

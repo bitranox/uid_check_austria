@@ -190,14 +190,14 @@ class TestEmailNotificationAdapter:
             call_kwargs = mock_send.call_args.kwargs
             assert call_kwargs["recipients"] == ["recipient@example.com"]
             assert "DE123456789" in call_kwargs["subject"]
-            assert "VALID" in call_kwargs["subject"]
+            assert "Valid" in call_kwargs["subject"]
 
     def test_send_result_invalid_uid(
         self,
         invalid_result: UidCheckResult,
         email_config: EmailConfig,
     ) -> None:
-        """Should include INVALID in subject for invalid UIDs."""
+        """Should include Invalid in subject for invalid UIDs."""
         adapter = EmailNotificationAdapter(email_config)
 
         with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
@@ -206,7 +206,51 @@ class TestEmailNotificationAdapter:
             adapter.send_result(invalid_result, ["recipient@example.com"])
 
             call_kwargs = mock_send.call_args.kwargs
-            assert "INVALID" in call_kwargs["subject"]
+            assert "Invalid" in call_kwargs["subject"]
+
+    def test_send_result_service_unavailable(
+        self,
+        email_config: EmailConfig,
+    ) -> None:
+        """Should include Service Unavailable in subject for return code 1511."""
+        service_unavailable_result = UidCheckResult(
+            uid="DE123456789",
+            return_code=1511,
+            message="Service unavailable",
+            timestamp=datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        )
+        adapter = EmailNotificationAdapter(email_config)
+
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
+            mock_send.return_value = True
+
+            adapter.send_result(service_unavailable_result, ["recipient@example.com"])
+
+            call_kwargs = mock_send.call_args.kwargs
+            assert "Service Unavailable" in call_kwargs["subject"]
+            assert "UNAVAILABLE" in call_kwargs["body"]
+
+    def test_send_result_rate_limited(
+        self,
+        email_config: EmailConfig,
+    ) -> None:
+        """Should include Rate Limited in subject for return code 1513."""
+        rate_limited_result = UidCheckResult(
+            uid="DE123456789",
+            return_code=1513,
+            message="Rate limit exceeded",
+            timestamp=datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        )
+        adapter = EmailNotificationAdapter(email_config)
+
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
+            mock_send.return_value = True
+
+            adapter.send_result(rate_limited_result, ["recipient@example.com"])
+
+            call_kwargs = mock_send.call_args.kwargs
+            assert "Rate Limited" in call_kwargs["subject"]
+            assert "RATE LIMITED" in call_kwargs["body"]
 
     def test_send_result_no_recipients(
         self,

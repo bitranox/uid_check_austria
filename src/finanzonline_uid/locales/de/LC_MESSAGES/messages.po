@@ -95,8 +95,27 @@ msgstr "GÜLTIG"
 msgid "INVALID"
 msgstr "UNGÜLTIG"
 
+msgid "UNAVAILABLE"
+msgstr "NICHT VERFÜGBAR"
+
+msgid "RATE LIMITED"
+msgstr "RATENLIMIT"
+
 msgid "ERROR"
 msgstr "FEHLER"
+
+# Subject status values
+msgid "Valid"
+msgstr "Gültig"
+
+msgid "Invalid"
+msgstr "Ungültig"
+
+msgid "Service Unavailable"
+msgstr "Dienst nicht verfügbar"
+
+msgid "Rate Limited"
+msgstr "Ratenlimit erreicht"
 
 # Labels
 msgid "UID Check Result"
