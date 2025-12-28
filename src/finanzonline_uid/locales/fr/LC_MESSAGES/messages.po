@@ -356,3 +356,41 @@ msgstr "5-128 caractères"
 
 msgid "10-24 alphanumeric"
 msgstr "10-24 alphanumérique"
+
+# Retry mode messages
+msgid "Retry interval in minutes until check succeeds or canceled (interactive mode only)"
+msgstr "Intervalle de réessai en minutes jusqu'à ce que la vérification réussisse ou soit annulée (mode interactif uniquement)"
+
+msgid "Error: --retryminutes requires --interactive mode"
+msgstr "Erreur : --retryminutes nécessite le mode --interactive"
+
+msgid "Checking"
+msgstr "Vérification"
+
+msgid "Next attempt in"
+msgstr "Prochaine tentative dans"
+
+msgid "Attempts so far"
+msgstr "Tentatives jusqu'à présent"
+
+msgid "Retry Mode"
+msgstr "Mode réessai"
+
+msgid "Attempt"
+msgstr "Tentative"
+
+msgid "Cancelled by user after"
+msgstr "Annulé par l'utilisateur après"
+
+msgid "attempt(s)"
+msgstr "tentative(s)"
+
+msgid "Check cancelled by user"
+msgstr "Vérification annulée par l'utilisateur"
+
+# Notification warnings
+msgid "Warning: Email notification failed: {error}"
+msgstr "Avertissement : Échec de la notification par e-mail : {error}"
+
+msgid "Warning: Error notification failed: {error}"
+msgstr "Avertissement : Échec de la notification d'erreur : {error}"

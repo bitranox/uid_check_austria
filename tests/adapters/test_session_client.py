@@ -64,7 +64,10 @@ class TestLazyClientCreation:
 
             result = client._get_client()
 
-            mock_class.assert_called_once_with(SESSION_SERVICE_WSDL)
+            mock_class.assert_called_once()
+            call_args = mock_class.call_args
+            assert call_args[0][0] == SESSION_SERVICE_WSDL
+            assert "transport" in call_args[1]  # Transport is now passed
             assert result is mock_instance
 
     def test_subsequent_calls_reuse_existing_client(self) -> None:

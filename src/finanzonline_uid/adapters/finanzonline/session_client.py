@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from zeep import Client
 from zeep.exceptions import Fault, TransportError
+from zeep.transports import Transport
 
 from finanzonline_uid.domain.errors import AuthenticationError, SessionError
 from finanzonline_uid.domain.models import Diagnostics, SessionInfo
@@ -178,8 +179,9 @@ class FinanzOnlineSessionClient:
             Zeep Client instance for session service.
         """
         if self._client is None:
-            logger.debug("Creating session service client")
-            self._client = Client(SESSION_SERVICE_WSDL)
+            logger.debug("Creating session service client with timeout=%s", self._timeout)
+            transport = Transport(timeout=self._timeout, operation_timeout=self._timeout)
+            self._client = Client(SESSION_SERVICE_WSDL, transport=transport)
         return self._client
 
     def login(self, credentials: FinanzOnlineCredentials) -> SessionInfo:
@@ -195,7 +197,7 @@ class FinanzOnlineSessionClient:
             AuthenticationError: If credentials are invalid (code -4).
             SessionError: If session creation fails for other reasons.
         """
-        logger.debug("Attempting login for tid=%s, benid=%s", credentials.tid, credentials.benid)
+        logger.debug("Attempting login for tid=%s, benid=%s", _mask_credential(credentials.tid), _mask_credential(credentials.benid))
         response: Any = None
 
         try:

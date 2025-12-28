@@ -5,6 +5,32 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 
 
+## [2.3.0] - 2025-12-28
+
+### Fixed
+
+- **Security: HTML injection in email notifications**: Added `html.escape()` to all external data (company names, addresses, error messages) inserted into HTML email bodies. Prevents potential XSS in email clients from malicious company names in BMF responses.
+
+- **Security: Credentials exposed in debug logs**: Masked TID and BENID in debug log output using the same masking function already applied to PIN and session ID.
+
+- **SOAP timeout not applied**: Fixed Zeep client initialization to actually use the configured timeout. Previously, the timeout parameter was stored but never passed to the Transport, allowing SOAP requests to hang indefinitely.
+
+- **Austrian UID validation incomplete**: Strengthened `uid_tn` validation from simple prefix check to full regex pattern `^ATU\d{8}$`. Previously accepted malformed values like "ATU" (just prefix), "ATUXYZ" (letters after prefix), or "ATU1" (wrong length).
+
+- **Cache timestamp semantics**: Cached results now return the original query timestamp instead of the retrieval time. This ensures consistent behavior where `timestamp` always reflects when the UID was verified, not when the cache was read.
+
+- **Duplicate CliExitCode enum value**: Removed `UID_VALID = 0` alias which was identical to `SUCCESS = 0`. Python IntEnum treats same-value members as aliases, causing iteration issues.
+
+- **Email notification failures not visible**: Added `click.echo()` output for email notification failures so CLI users see the warning even without log configuration.
+
+- **from_cache/cached_at invariant not enforced**: Added `__post_init__` validation to `UidCheckResult` ensuring `cached_at` is set when `from_cache=True`.
+
+- **Type hint style**: Removed unnecessary string quotes from type annotations where `from __future__ import annotations` makes them redundant.
+
+### Added
+
+- Translations for email notification warning messages (de, es, fr, ru)
+
 ## [2.2.0] - 2025-12-28
 
 ### Added
@@ -32,6 +58,12 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
   - Simplified `sanitize_uid()` to use single-pass filtering with combined character set
   - Inlined tiny helper functions in `behaviors.py` into `emit_greeting()`
   - Modernized type hints: replaced `Tuple` with `tuple`, `Optional[X]` with `X | None`
+
+### Fixed
+
+- **Retry mode not retrying on retryable return codes**: The `--retryminutes` option now correctly retries when the FinanzOnline service returns transient errors (return codes -2, -3, 12, 1511, 1512, 1513, 1514). Previously, retryable return codes like 1511 (Service Unavailable) would exit immediately instead of waiting and retrying.
+- **Countdown display now shows UID**: The retry countdown animation now displays which UID is being checked, improving visibility during long retry sessions.
+- **Retry mode countdown fully localized**: All text in the countdown display is now properly translated (de, es, fr, ru). Removed emoji icon from display for cleaner output.
 
 ## [2.1.0] - 2025-12-23
 

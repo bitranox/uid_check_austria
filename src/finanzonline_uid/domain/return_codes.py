@@ -47,10 +47,11 @@ class CliExitCode(IntEnum):
 
     Standard exit codes used by the CLI to indicate result status.
     These are distinct from FinanzOnline return codes.
+
+    Note: SUCCESS (0) is used for valid UIDs. UID_INVALID (1) for invalid UIDs.
     """
 
-    SUCCESS = 0
-    UID_VALID = 0
+    SUCCESS = 0  # Also used when UID is valid
     UID_INVALID = 1
     CONFIG_ERROR = 2
     AUTH_ERROR = 3

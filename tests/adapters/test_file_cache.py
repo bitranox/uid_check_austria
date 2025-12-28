@@ -367,15 +367,13 @@ class TestCachedResultTimestamp:
         assert cached.cached_at.month == 1
         assert cached.cached_at.day == 15
 
-    def test_timestamp_is_current_time(self, cache: UidResultCache, valid_result: UidCheckResult) -> None:
-        """timestamp should be the retrieval time, not original query time."""
+    def test_timestamp_is_original_query_time(self, cache: UidResultCache, valid_result: UidCheckResult) -> None:
+        """timestamp should be the original query time, not retrieval time."""
         cache.put(valid_result)
-
-        # Get current time before retrieval
-        before = datetime.now(timezone.utc)
         cached = cache.get(valid_result.uid)
-        after = datetime.now(timezone.utc)
 
         assert cached is not None
-        # timestamp should be between before and after
-        assert before <= cached.timestamp <= after
+        # timestamp should equal the original query time (cached_at)
+        assert cached.timestamp == cached.cached_at
+        # And should match the original result's timestamp
+        assert cached.timestamp == valid_result.timestamp

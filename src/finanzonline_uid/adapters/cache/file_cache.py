@@ -104,7 +104,7 @@ def _cache_entry_to_result(entry: dict[str, Any]) -> UidCheckResult:
         message=entry["message"],
         name=entry.get("name", ""),
         address=_dict_to_address(entry.get("address")),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=queried_at,  # Use original query time, not retrieval time
         from_cache=True,
         cached_at=queried_at,
     )

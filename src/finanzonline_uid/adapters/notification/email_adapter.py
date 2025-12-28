@@ -18,6 +18,7 @@ Adapters layer - integrates with btx_lib_mail for email delivery.
 
 from __future__ import annotations
 
+import html
 import logging
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -238,7 +239,8 @@ def _format_address_row_html(address: "Address | None") -> str:
     address_lines = address.as_lines()
     if not address_lines:
         return ""
-    address_html = "<br>".join(address_lines)
+    # Escape each address line to prevent HTML injection
+    address_html = "<br>".join(html.escape(line) for line in address_lines)
     return f"<tr><td style='padding: 8px 15px; font-weight: bold; vertical-align: top;'>{_('Address:')}</td><td style='padding: 8px 15px;'>{address_html}</td></tr>"
 
 
@@ -252,16 +254,26 @@ def _format_company_section_html(result: UidCheckResult) -> str:
 
     rows = [f'<tr><td colspan="2"><h3 style="margin: 20px 0 10px 0; color: #333;">{_("Company Information")}</h3></td></tr>']
     if has_name:
-        rows.append(f'<tr><td style="{_HTML_TD_STYLE} font-weight: bold;">{_("Name:")}</td><td style="{_HTML_TD_STYLE}">{result.name}</td></tr>')
+        # Escape company name to prevent HTML injection
+        escaped_name = html.escape(result.name)
+        rows.append(f'<tr><td style="{_HTML_TD_STYLE} font-weight: bold;">{_("Name:")}</td><td style="{_HTML_TD_STYLE}">{escaped_name}</td></tr>')
     if has_address:
         rows.append(_format_address_row_html(result.address))
     return "".join(rows)
 
 
-def _html_row(label: str, value: str, extra_td_style: str = "") -> str:
-    """Build a single HTML table row."""
+def _html_row(label: str, value: str, extra_td_style: str = "", escape_value: bool = True) -> str:
+    """Build a single HTML table row.
+
+    Args:
+        label: Row label (assumed safe - from translations).
+        value: Row value to display.
+        extra_td_style: Additional CSS for value cell.
+        escape_value: If True (default), HTML-escape the value. Set False for pre-formatted HTML.
+    """
     td_base = _HTML_TD_STYLE
-    return f'<tr><td style="{td_base} font-weight: bold;">{label}</td><td style="{td_base}{extra_td_style}">{value}</td></tr>'
+    safe_value = html.escape(value) if escape_value else value
+    return f'<tr><td style="{td_base} font-weight: bold;">{label}</td><td style="{td_base}{extra_td_style}">{safe_value}</td></tr>'
 
 
 def _build_result_table_rows(result: UidCheckResult, info: "ReturnCodeInfo") -> str:
@@ -269,17 +281,19 @@ def _build_result_table_rows(result: UidCheckResult, info: "ReturnCodeInfo") -> 
     status = _get_result_status(result.return_code)
     status_color = _get_status_color(result.return_code)
     severity_color = _get_severity_color(info.severity.value)
-    status_span = f'<span style="background-color: {status_color}; color: white; padding: 4px 12px; border-radius: 4px; font-weight: bold;">{status}</span>'
-    severity_span = f'<span style="color: {severity_color}; font-weight: bold;">{info.severity.value.upper()}</span>'
+    status_span = (
+        f'<span style="background-color: {status_color}; color: white; padding: 4px 12px; border-radius: 4px; font-weight: bold;">{html.escape(status)}</span>'
+    )
+    severity_span = f'<span style="color: {severity_color}; font-weight: bold;">{html.escape(info.severity.value.upper())}</span>'
     rows = [
-        _html_row(_("UID:"), result.uid, " font-family: monospace; font-size: 1.1em;"),
-        _html_row(_("Query Level:"), _("Stufe 2 (with name/address verification)")),
-        _html_row(_("Status:"), status_span),
-        _html_row(_("Return Code:"), str(result.return_code)),
-        _html_row(_("Message:"), result.message),
-        _html_row(_("Severity:"), severity_span),
-        _html_row(_("Retryable:"), _("Yes") if info.retryable else _("No")),
-        _html_row(_("Timestamp:"), format_local_time(result.timestamp)),
+        _html_row(_("UID:"), result.uid, " font-family: monospace; font-size: 1.1em;"),  # escaped by default
+        _html_row(_("Query Level:"), _("Stufe 2 (with name/address verification)")),  # translated string, safe
+        _html_row(_("Status:"), status_span, escape_value=False),  # pre-formatted HTML
+        _html_row(_("Return Code:"), str(result.return_code)),  # numeric, safe
+        _html_row(_("Message:"), result.message),  # escaped by default
+        _html_row(_("Severity:"), severity_span, escape_value=False),  # pre-formatted HTML
+        _html_row(_("Retryable:"), _("Yes") if info.retryable else _("No")),  # translated, safe
+        _html_row(_("Timestamp:"), format_local_time(result.timestamp)),  # formatted date, safe
     ]
     return "".join(rows) + _format_company_section_html(result)
 
@@ -356,15 +370,15 @@ def _format_return_code_section_html(return_code: int) -> str:
     info = get_return_code_info(return_code)
     return f"""
         <tr><td style="padding: 8px 15px; font-weight: bold;">{_("Return Code:")}</td><td style="padding: 8px 15px;">{return_code}</td></tr>
-        <tr><td style="padding: 8px 15px; font-weight: bold;">{_("Meaning:")}</td><td style="padding: 8px 15px;">{info.meaning}</td></tr>
-        <tr><td style="padding: 8px 15px; font-weight: bold;">{_("Severity:")}</td><td style="padding: 8px 15px;"><span style="color: #dc3545; font-weight: bold;">{info.severity.value.upper()}</span></td></tr>"""
+        <tr><td style="padding: 8px 15px; font-weight: bold;">{_("Meaning:")}</td><td style="padding: 8px 15px;">{html.escape(info.meaning)}</td></tr>
+        <tr><td style="padding: 8px 15px; font-weight: bold;">{_("Severity:")}</td><td style="padding: 8px 15px;"><span style="color: #dc3545; font-weight: bold;">{html.escape(info.severity.value.upper())}</span></td></tr>"""
 
 
 def _format_diagnostics_section_html(diagnostics: Diagnostics) -> str:
     """Format diagnostics section as HTML."""
     rows = "".join(
-        f'<tr><td style="padding: 6px 15px; font-weight: bold; color: #666; font-size: 0.9em;">{k.replace("_", " ").title()}:</td>'
-        f'<td style="padding: 6px 15px; font-family: monospace; font-size: 0.85em; word-break: break-all;">{v}</td></tr>'
+        f'<tr><td style="padding: 6px 15px; font-weight: bold; color: #666; font-size: 0.9em;">{html.escape(k.replace("_", " ").title())}:</td>'
+        f'<td style="padding: 6px 15px; font-family: monospace; font-size: 0.85em; word-break: break-all;">{html.escape(str(v))}</td></tr>'
         for k, v in diagnostics.as_dict().items()
     )
     return f"""<h3 style="color: #856404; border-bottom: 1px solid #ffc107; padding-bottom: 8px; margin-top: 30px;">{_("Diagnostic Information")}</h3>
@@ -373,19 +387,21 @@ def _format_diagnostics_section_html(diagnostics: Diagnostics) -> str:
 
 def _build_error_table_rows(uid: str, error_type: str, error_message: str, return_code: int | None, retryable: bool, timestamp: str) -> str:
     """Build HTML table rows for error display."""
-    error_span = f'<span style="background-color: #dc3545; color: white; padding: 4px 12px; border-radius: 4px; font-weight: bold;">{_("ERROR")}</span>'
+    error_span = (
+        f'<span style="background-color: #dc3545; color: white; padding: 4px 12px; border-radius: 4px; font-weight: bold;">{html.escape(_("ERROR"))}</span>'
+    )
     rows = [
-        _html_row(_("UID:"), uid, " font-family: monospace; font-size: 1.1em;"),
-        _html_row(_("Status:"), error_span),
-        _html_row(_("Error Type:"), error_type, " color: #dc3545; font-weight: bold;"),
-        _html_row(_("Message:"), error_message),
+        _html_row(_("UID:"), uid, " font-family: monospace; font-size: 1.1em;"),  # escaped by default
+        _html_row(_("Status:"), error_span, escape_value=False),  # pre-formatted HTML
+        _html_row(_("Error Type:"), error_type, " color: #dc3545; font-weight: bold;"),  # escaped by default
+        _html_row(_("Message:"), error_message),  # escaped by default
     ]
     if return_code is not None:
         rows.append(_format_return_code_section_html(return_code))
     rows.extend(
         [
-            _html_row(_("Retryable:"), _("Yes - try again later") if retryable else _("No")),
-            _html_row(_("Timestamp:"), timestamp),
+            _html_row(_("Retryable:"), _("Yes - try again later") if retryable else _("No")),  # translated, safe
+            _html_row(_("Timestamp:"), timestamp),  # formatted date, safe
         ]
     )
     return "".join(rows)

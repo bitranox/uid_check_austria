@@ -356,3 +356,41 @@ msgstr "5-128 символов"
 
 msgid "10-24 alphanumeric"
 msgstr "10-24 буквенно-цифровых"
+
+# Retry mode messages
+msgid "Retry interval in minutes until check succeeds or canceled (interactive mode only)"
+msgstr "Интервал повтора в минутах до успешной проверки или отмены (только интерактивный режим)"
+
+msgid "Error: --retryminutes requires --interactive mode"
+msgstr "Ошибка: --retryminutes требует режим --interactive"
+
+msgid "Checking"
+msgstr "Проверка"
+
+msgid "Next attempt in"
+msgstr "Следующая попытка через"
+
+msgid "Attempts so far"
+msgstr "Попыток выполнено"
+
+msgid "Retry Mode"
+msgstr "Режим повтора"
+
+msgid "Attempt"
+msgstr "Попытка"
+
+msgid "Cancelled by user after"
+msgstr "Отменено пользователем после"
+
+msgid "attempt(s)"
+msgstr "попыток"
+
+msgid "Check cancelled by user"
+msgstr "Проверка отменена пользователем"
+
+# Notification warnings
+msgid "Warning: Email notification failed: {error}"
+msgstr "Предупреждение: Ошибка отправки email-уведомления: {error}"
+
+msgid "Warning: Error notification failed: {error}"
+msgstr "Предупреждение: Ошибка отправки уведомления об ошибке: {error}"

@@ -47,7 +47,7 @@ from .config_deploy import deploy_configuration
 from .config_show import display_config
 from .domain.errors import AuthenticationError, CheckErrorInfo, ConfigurationError, QueryError, SessionError, UidCheckError
 from .domain.models import sanitize_uid
-from .domain.return_codes import CliExitCode, get_return_code_info
+from .domain.return_codes import CliExitCode, get_return_code_info, is_retryable
 from .enums import DeployTarget, OutputFormat
 from .logging_setup import init_logging
 from .mail import EmailConfig, load_email_config_from_dict
@@ -485,36 +485,43 @@ def _handle_check_error(
 # =============================================================================
 
 
-def _format_countdown(seconds_remaining: int, attempt: int) -> Panel:
-    """Format countdown display with attempt info.
+def _format_countdown(seconds_remaining: int, attempt: int, uid: str) -> Panel:
+    """Format countdown display with UID and attempt info.
 
     Args:
         seconds_remaining: Seconds until next attempt.
         attempt: Current attempt number.
+        uid: The UID being checked.
 
     Returns:
-        Rich Panel with countdown and attempt info.
+        Rich Panel with UID, countdown and attempt info.
     """
     minutes = seconds_remaining // 60
     secs = seconds_remaining % 60
 
     text = Text()
-    text.append("⏳ ", style="yellow")
-    text.append(_("Next attempt in: "), style="white")
+    text.append(_("Checking"), style="white")
+    text.append(": ", style="white")
+    text.append(uid, style="bold green")
+    text.append("\n")
+    text.append(_("Next attempt in"), style="white")
+    text.append(": ", style="white")
     text.append(f"{minutes:02d}:{secs:02d}", style="bold cyan")
     text.append("\n")
-    text.append(f"   {_('Attempts so far')}: ", style="dim")
+    text.append(_("Attempts so far"), style="dim")
+    text.append(": ", style="dim")
     text.append(str(attempt), style="bold yellow")
 
     return Panel(text, title=_("Retry Mode"), border_style="blue")
 
 
-def _wait_with_countdown(seconds: float, attempt: int) -> bool:
+def _wait_with_countdown(seconds: float, attempt: int, uid: str) -> bool:
     """Wait with animated countdown display.
 
     Args:
         seconds: Total seconds to wait.
         attempt: Current attempt number for display.
+        uid: The UID being checked (displayed in countdown).
 
     Returns:
         True if wait completed, False if interrupted by Ctrl+C.
@@ -522,12 +529,12 @@ def _wait_with_countdown(seconds: float, attempt: int) -> bool:
     end_time = time.time() + seconds
 
     try:
-        with Live(_format_countdown(int(seconds), attempt), refresh_per_second=1) as live:
+        with Live(_format_countdown(int(seconds), attempt, uid), refresh_per_second=1) as live:
             while True:
                 remaining = int(end_time - time.time())
                 if remaining <= 0:
                     return True
-                live.update(_format_countdown(remaining, attempt))
+                live.update(_format_countdown(remaining, attempt, uid))
                 time.sleep(0.5)
     except (SigIntInterrupt, KeyboardInterrupt):
         return False
@@ -558,19 +565,36 @@ def _execute_retry_loop(
     attempt = 0
     last_error: CheckErrorInfo | None = None
 
+    last_result: Any = None
+
     while True:
         attempt += 1
         logger.info("Retry attempt %d", attempt, extra={"uid": uid})
 
         try:
             result = _execute_uid_check(fo_config, uid, config=config, recipients=recipients)
-            return result, None  # Success!
+            last_result = result
+
+            # Check if result indicates success OR non-retryable error
+            if result.is_valid or not is_retryable(result.return_code):
+                return result, None  # Final result (success or non-retryable)
+
+            # Retryable return code (e.g., 1511 Service Unavailable) - continue loop
+            click.echo(f"\n{_('Attempt')} {attempt}: {result.message}", err=True)
+
+            # Animated countdown (handles Ctrl+C internally)
+            if not _wait_with_countdown(retry_minutes * 60, attempt, uid):
+                # User cancelled during wait - return last result
+                click.echo(f"\n{_('Cancelled by user after')} {attempt} {_('attempt(s)')}", err=True)
+                return result, None
 
         except (SigIntInterrupt, KeyboardInterrupt):
             # User pressed Ctrl+C - clean exit
             click.echo(f"\n{_('Cancelled by user after')} {attempt} {_('attempt(s)')}", err=True)
             if last_error:
                 return None, last_error
+            if last_result:
+                return last_result, None
             return None, CheckErrorInfo(
                 error_type="Cancelled",
                 message=_("Check cancelled by user"),
@@ -591,7 +615,7 @@ def _execute_retry_loop(
             click.echo(f"\n{_('Attempt')} {attempt}: {error_info.message}", err=True)
 
             # Animated countdown (handles Ctrl+C internally)
-            if not _wait_with_countdown(retry_minutes * 60, attempt):
+            if not _wait_with_countdown(retry_minutes * 60, attempt, uid):
                 # User cancelled during wait
                 click.echo(f"\n{_('Cancelled by user after')} {attempt} {_('attempt(s)')}", err=True)
                 return None, last_error
@@ -690,7 +714,7 @@ def cli_check(
                     _output_check_result(result, output_format)
                     if not no_email:
                         _send_check_notification(config=config, fo_config=fo_config, result=result, recipients=recipients_list)
-                    raise SystemExit(CliExitCode.UID_VALID if result.is_valid else CliExitCode.UID_INVALID)
+                    raise SystemExit(CliExitCode.SUCCESS if result.is_valid else CliExitCode.UID_INVALID)
                 elif error_info is not None:
                     # Error (cancelled or non-retryable)
                     _handle_check_error(
@@ -709,7 +733,7 @@ def cli_check(
                 if not no_email:
                     _send_check_notification(config=config, fo_config=fo_config, result=result, recipients=recipients_list)
 
-                raise SystemExit(CliExitCode.UID_VALID if result.is_valid else CliExitCode.UID_INVALID)
+                raise SystemExit(CliExitCode.SUCCESS if result.is_valid else CliExitCode.UID_INVALID)
 
         except (ConfigurationError, AuthenticationError, SessionError, QueryError, ValueError, UidCheckError) as exc:
             error_info = _get_error_info(exc)
@@ -927,6 +951,7 @@ def _send_check_notification(
 
     except Exception as e:
         logger.warning("Email notification error (non-fatal): %s", e)
+        click.echo(_("Warning: Email notification failed: {error}").format(error=e), err=True)
 
 
 def _send_error_notification(
@@ -959,6 +984,7 @@ def _send_error_notification(
 
     except Exception as e:
         logger.warning("Error notification error (non-fatal): %s", e)
+        click.echo(_("Warning: Error notification failed: {error}").format(error=e), err=True)
 
 
 def main(argv: Sequence[str] | None = None, *, restore_traceback: bool = True) -> int:

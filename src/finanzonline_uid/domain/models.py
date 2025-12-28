@@ -50,6 +50,8 @@ _BENID_MAX_LEN = 12
 _PIN_MIN_LEN = 5
 _PIN_MAX_LEN = 128
 _HERSTELLERID_PATTERN = re.compile(r"^[0-9A-Za-z]{10,24}$")
+# Austrian UID format: ATU + exactly 8 digits (case-insensitive)
+_UID_TN_PATTERN = re.compile(r"^ATU\d{8}$", re.IGNORECASE)
 
 
 def _validate_required(value: str, field_name: str, display_name: str) -> None:
@@ -249,10 +251,9 @@ class SessionInfo:
 
 
 def _validate_uid_tn(uid_tn: str) -> None:
-    """Validate own Austrian UID format."""
+    """Validate own Austrian UID format (ATU + 8 digits)."""
     _validate_required(uid_tn, "uid_tn", "own Austrian UID")
-    if not uid_tn.upper().startswith("ATU"):
-        raise ValueError("uid_tn must start with 'ATU'")
+    _validate_pattern(uid_tn, "uid_tn", _UID_TN_PATTERN, "ATU followed by 8 digits (e.g., ATU12345678)")
 
 
 @dataclass(frozen=True, slots=True)
@@ -367,6 +368,11 @@ class UidCheckResult:
     timestamp: datetime = field(default_factory=_utc_now)
     from_cache: bool = False
     cached_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        """Validate invariants for cached results."""
+        if self.from_cache and self.cached_at is None:
+            raise ValueError("cached_at required when from_cache=True")
 
     @property
     def is_valid(self) -> bool:

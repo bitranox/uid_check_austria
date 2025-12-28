@@ -76,7 +76,10 @@ class TestGetClient:
 
             result = query_client._get_client()
 
-            mock_client_class.assert_called_once_with(UID_QUERY_SERVICE_WSDL)
+            mock_client_class.assert_called_once()
+            call_args = mock_client_class.call_args
+            assert call_args[0][0] == UID_QUERY_SERVICE_WSDL
+            assert "transport" in call_args[1]  # Transport is now passed
             assert result == mock_client
 
     def test_reuses_client_on_subsequent_calls(self, query_client: FinanzOnlineQueryClient) -> None:

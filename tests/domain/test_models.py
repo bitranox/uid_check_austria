@@ -148,7 +148,7 @@ class TestUidCheckRequest:
 
     def test_uid_tn_not_starting_atu_raises(self) -> None:
         """Should raise ValueError if uid_tn doesn't start with ATU."""
-        with pytest.raises(ValueError, match="start with 'ATU'"):
+        with pytest.raises(ValueError, match="ATU followed by 8 digits"):
             UidCheckRequest(uid_tn="DE123456789", uid="FR123456789")
 
     def test_empty_uid_raises(self) -> None:

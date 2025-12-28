@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from zeep import Client
 from zeep.exceptions import Fault, TransportError
+from zeep.transports import Transport
 
 from finanzonline_uid.domain.errors import QueryError, SessionError
 from finanzonline_uid.domain.models import Address, Diagnostics, UidCheckResult
@@ -64,8 +65,8 @@ def _format_query_request(
 ) -> dict[str, Any]:
     """Format query request parameters for debug logging (masked)."""
     return {
-        "tid": credentials.tid,
-        "benid": credentials.benid,
+        "tid": _mask_value(credentials.tid),
+        "benid": _mask_value(credentials.benid),
         "id": _mask_value(session_id) if session_id else "?",
         "uid_tn": request.uid_tn,
         "uid": request.uid,
@@ -236,8 +237,9 @@ class FinanzOnlineQueryClient:
             Zeep Client instance for UID query service.
         """
         if self._client is None:
-            logger.debug("Creating UID query service client")
-            self._client = Client(UID_QUERY_SERVICE_WSDL)
+            logger.debug("Creating UID query service client with timeout=%s", self._timeout)
+            transport = Transport(timeout=self._timeout, operation_timeout=self._timeout)
+            self._client = Client(UID_QUERY_SERVICE_WSDL, transport=transport)
         return self._client
 
     def query(

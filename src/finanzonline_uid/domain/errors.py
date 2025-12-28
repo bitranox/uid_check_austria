@@ -62,7 +62,7 @@ class CheckErrorInfo:
 
     error_type: str
     message: str
-    exit_code: "CliExitCode"
+    exit_code: CliExitCode
     return_code: int | None = None
     retryable: bool = False
     diagnostics: Diagnostics | None = None
