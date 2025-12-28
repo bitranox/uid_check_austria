@@ -165,6 +165,35 @@ def _get_default_ratelimit_path() -> Path:
     return _get_cache_dir() / "rate_limits.json"
 
 
+def _normalize_path(path_str: str) -> Path:
+    """Normalize path string to handle both Windows and Linux-style paths.
+
+    Allows using forward slashes in config files even for Windows UNC paths.
+    For example, `//server/share/path` is converted to `\\\\server\\share\\path`
+    on Windows.
+
+    Args:
+        path_str: Path string (may use forward or back slashes).
+
+    Returns:
+        Normalized Path object appropriate for the current platform.
+
+    Example:
+        >>> # On Windows, Linux-style UNC paths are converted
+        >>> _normalize_path("//server/share/dir")  # doctest: +SKIP
+        WindowsPath('//server/share/dir')
+    """
+    import sys
+
+    path_str = path_str.strip()
+
+    # On Windows, convert Linux-style UNC paths (//server/share) to Windows-style
+    if sys.platform == "win32" and path_str.startswith("//"):
+        path_str = path_str.replace("/", "\\")
+
+    return Path(path_str).expanduser()
+
+
 def _parse_cache_file_path(raw: Any) -> Path:
     """Parse cache file path from config value.
 
@@ -175,7 +204,7 @@ def _parse_cache_file_path(raw: Any) -> Path:
         Path object, using platform default if not specified.
     """
     if isinstance(raw, str) and raw.strip():
-        return Path(raw.strip()).expanduser()
+        return _normalize_path(raw)
     if isinstance(raw, Path):
         return raw
     return _get_default_cache_path()
@@ -191,7 +220,7 @@ def _parse_ratelimit_file_path(raw: Any) -> Path:
         Path object, using platform default if not specified.
     """
     if isinstance(raw, str) and raw.strip():
-        return Path(raw.strip()).expanduser()
+        return _normalize_path(raw)
     if isinstance(raw, Path):
         return raw
     return _get_default_ratelimit_path()
@@ -457,7 +486,7 @@ def load_finanzonline_config(config: Config) -> FinanzOnlineConfig:
 
     # Parse output directory - defaults to empty (disabled)
     output_dir_raw = fo_section.get("output_dir", "")
-    output_dir = Path(output_dir_raw) if output_dir_raw else None
+    output_dir = _normalize_path(output_dir_raw) if output_dir_raw else None
 
     # Parse output format - defaults to html, validate against allowed values
     output_format_raw = str(fo_section.get("output_format", "html")).lower()

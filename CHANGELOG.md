@@ -5,6 +5,12 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 
 
+## [2.5.2] - 2025-12-28
+
+### Changed
+
+- **Cross-platform path support**: All file path configuration options (`cache_file`, `ratelimit_file`, `output_dir`) now accept forward slashes on Windows. Linux-style UNC paths like `//server/share/path` are automatically converted to Windows-style `\\server\share\path`. This allows using the same config file across platforms without escaping backslashes in TOML.
+
 ## [2.5.1] - 2025-12-28
 
 ### Changed

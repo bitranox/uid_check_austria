@@ -162,6 +162,8 @@
 # Environment: FINANZONLINE_UID___FINANZONLINE__CACHE_FILE
 # Note: Uses file locking for safe concurrent access on network drives.
 #       Parent directories are created automatically if needed.
+#       Cross-platform: Use forward slashes (/) even for Windows UNC paths.
+#       Example: "//server/share/cache.json" works on Windows (converted to \\server\share\cache.json)
 # Example: cache_file = "/shared/network/uid_cache.json"
 
 # ratelimit_queries = 50
@@ -189,6 +191,7 @@
 #   - Windows: %LOCALAPPDATA%/finanzonline-uid/rate_limits.json
 # Environment: FINANZONLINE_UID___FINANZONLINE__RATELIMIT_FILE
 # Note: Uses file locking for safe concurrent access.
+#       Cross-platform: Use forward slashes (/) even for Windows UNC paths.
 # Example: ratelimit_file = "/shared/network/rate_limits.json"
 
 # output_dir = ""
@@ -200,6 +203,8 @@
 #       <UID>_<YYYY-MM-DD>.<ext> and overwritten if they already exist.
 #       File format/extension is controlled by output_format setting.
 #       Can be overridden with --outputdir CLI option.
+#       Cross-platform: Use forward slashes (/) even for Windows UNC paths.
+#       Example: "//server/share/uid-checks/" works on Windows.
 # Example: output_dir = "/var/log/uid-checks/"
 
 # output_format = "html"
