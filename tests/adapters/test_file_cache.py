@@ -346,6 +346,96 @@ class TestCacheProperties:
         cache = UidResultCache(cache_file=cache_file, cache_hours=48.0)
         assert cache.cache_hours == 48.0
 
+    def test_max_entries_property(self, cache_file: Path) -> None:
+        """max_entries property returns the configured limit."""
+        cache = UidResultCache(cache_file=cache_file, cache_hours=24.0, max_entries=500)
+        assert cache.max_entries == 500
+
+    def test_max_entries_default(self, cache_file: Path) -> None:
+        """max_entries defaults to 1000."""
+        cache = UidResultCache(cache_file=cache_file, cache_hours=24.0)
+        assert cache.max_entries == 1000
+
+
+# ============================================================================
+# Max entries limit
+# ============================================================================
+
+
+class TestCacheMaxEntries:
+    """Tests for cache max entries limit."""
+
+    def test_oldest_entries_trimmed_when_limit_exceeded(self, cache_file: Path) -> None:
+        """Oldest entries are removed when max_entries is exceeded."""
+        cache = UidResultCache(cache_file=cache_file, cache_hours=24.0, max_entries=3)
+
+        # Pre-populate with 3 entries (at the limit)
+        existing_data = {
+            "UID001": {
+                "uid": "UID001",
+                "return_code": 0,
+                "message": "Valid",
+                "name": "",
+                "address": None,
+                "queried_at": "2025-01-01T10:00:00Z",  # Oldest
+                "expires_at": "2025-12-31T00:00:00Z",
+            },
+            "UID002": {
+                "uid": "UID002",
+                "return_code": 0,
+                "message": "Valid",
+                "name": "",
+                "address": None,
+                "queried_at": "2025-01-01T11:00:00Z",  # Middle
+                "expires_at": "2025-12-31T00:00:00Z",
+            },
+            "UID003": {
+                "uid": "UID003",
+                "return_code": 0,
+                "message": "Valid",
+                "name": "",
+                "address": None,
+                "queried_at": "2025-01-01T12:00:00Z",  # Newest
+                "expires_at": "2025-12-31T00:00:00Z",
+            },
+        }
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_bytes(orjson.dumps(existing_data, option=orjson.OPT_INDENT_2))
+
+        # Add a new entry, which should trigger trimming of the oldest
+        new_result = UidCheckResult(
+            uid="UID004",
+            return_code=0,
+            message="Valid",
+            timestamp=datetime.now(timezone.utc),
+        )
+        cache.put(new_result)
+
+        # Verify: should have 3 entries, oldest (UID001) removed
+        data: dict[str, object] = orjson.loads(cache_file.read_bytes())
+        assert len(data) == 3
+        assert "UID001" not in data  # Oldest was trimmed
+        assert "UID002" in data
+        assert "UID003" in data
+        assert "UID004" in data
+
+    def test_entries_not_trimmed_when_under_limit(self, cache_file: Path) -> None:
+        """No entries trimmed when under max_entries limit."""
+        cache = UidResultCache(cache_file=cache_file, cache_hours=24.0, max_entries=10)
+
+        # Add a few entries (under limit)
+        for i in range(3):
+            result = UidCheckResult(
+                uid=f"ATU{i:08d}",
+                return_code=0,
+                message="Valid",
+                timestamp=datetime.now(timezone.utc),
+            )
+            cache.put(result)
+
+        data: dict[str, object] = orjson.loads(cache_file.read_bytes())
+        assert len(data) == 3
+
 
 # ============================================================================
 # Cached result timestamp handling

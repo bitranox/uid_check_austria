@@ -10,7 +10,12 @@ from datetime import datetime, timezone
 
 import pytest
 
-from finanzonline_uid.adapters.output.formatters import format_human, format_json
+from finanzonline_uid.adapters.output.formatters import (
+    format_error_human,
+    format_error_json,
+    format_human,
+    format_json,
+)
 from finanzonline_uid.domain.models import Address, UidCheckResult
 
 
@@ -180,3 +185,197 @@ class TestFormatJson:
         output = format_json(invalid_result)
         data = json.loads(output)
         assert "company" not in data
+
+
+# ============================================================================
+# Error formatters
+# ============================================================================
+
+
+class TestFormatErrorHuman:
+    """Tests for format_error_human function."""
+
+    def test_contains_uid(self) -> None:
+        """Should include UID in output."""
+        output = format_error_human(
+            error_type="Network Error",
+            error_message="Connection timed out",
+            uid="DE123456789",
+        )
+        assert "DE123456789" in output
+
+    def test_contains_error_type(self) -> None:
+        """Should include error type."""
+        output = format_error_human(
+            error_type="Authentication Error",
+            error_message="Invalid credentials",
+            uid="DE123456789",
+        )
+        assert "Authentication Error" in output
+
+    def test_contains_error_message(self) -> None:
+        """Should include error message."""
+        output = format_error_human(
+            error_type="Network Error",
+            error_message="Connection timed out",
+            uid="DE123456789",
+        )
+        assert "Connection timed out" in output
+
+    def test_contains_error_status(self) -> None:
+        """Should show ERROR status."""
+        output = format_error_human(
+            error_type="Network Error",
+            error_message="Error",
+            uid="DE123456789",
+        )
+        assert "ERROR" in output
+
+    def test_contains_return_code_when_provided(self) -> None:
+        """Should include return code when provided."""
+        output = format_error_human(
+            error_type="Service Error",
+            error_message="Service unavailable",
+            uid="DE123456789",
+            return_code=1511,
+        )
+        assert "1511" in output
+        assert "Meaning:" in output
+
+    def test_contains_retryable_yes(self) -> None:
+        """Should show retryable status as Yes."""
+        output = format_error_human(
+            error_type="Network Error",
+            error_message="Error",
+            uid="DE123456789",
+            retryable=True,
+        )
+        assert "Yes" in output
+
+    def test_contains_retryable_no(self) -> None:
+        """Should show retryable status as No."""
+        output = format_error_human(
+            error_type="Auth Error",
+            error_message="Error",
+            uid="DE123456789",
+            retryable=False,
+        )
+        assert "No" in output
+
+    def test_contains_timestamp(self) -> None:
+        """Should include timestamp."""
+        output = format_error_human(
+            error_type="Error",
+            error_message="Error",
+            uid="DE123456789",
+        )
+        assert "Timestamp:" in output
+
+
+class TestFormatErrorJson:
+    """Tests for format_error_json function."""
+
+    def test_valid_json(self) -> None:
+        """Should produce valid JSON."""
+        output = format_error_json(
+            error_type="Network Error",
+            error_message="Connection failed",
+            uid="DE123456789",
+        )
+        data = json.loads(output)
+        assert isinstance(data, dict)
+
+    def test_contains_uid(self) -> None:
+        """Should include uid field."""
+        output = format_error_json(
+            error_type="Error",
+            error_message="Failed",
+            uid="DE123456789",
+        )
+        data = json.loads(output)
+        assert data["uid"] == "DE123456789"
+
+    def test_is_valid_false(self) -> None:
+        """Should set is_valid to false."""
+        output = format_error_json(
+            error_type="Error",
+            error_message="Failed",
+            uid="DE123456789",
+        )
+        data = json.loads(output)
+        assert data["is_valid"] is False
+
+    def test_error_flag_true(self) -> None:
+        """Should set error flag to true."""
+        output = format_error_json(
+            error_type="Error",
+            error_message="Failed",
+            uid="DE123456789",
+        )
+        data = json.loads(output)
+        assert data["error"] is True
+
+    def test_contains_error_type(self) -> None:
+        """Should include error_type field."""
+        output = format_error_json(
+            error_type="Authentication Error",
+            error_message="Failed",
+            uid="DE123456789",
+        )
+        data = json.loads(output)
+        assert data["error_type"] == "Authentication Error"
+
+    def test_contains_message(self) -> None:
+        """Should include message field."""
+        output = format_error_json(
+            error_type="Error",
+            error_message="Connection timed out",
+            uid="DE123456789",
+        )
+        data = json.loads(output)
+        assert data["message"] == "Connection timed out"
+
+    def test_contains_return_code_when_provided(self) -> None:
+        """Should include return_code when provided."""
+        output = format_error_json(
+            error_type="Service Error",
+            error_message="Unavailable",
+            uid="DE123456789",
+            return_code=1511,
+        )
+        data = json.loads(output)
+        assert data["return_code"] == 1511
+        assert "meaning" in data
+        assert "severity" in data
+
+    def test_no_return_code_when_not_provided(self) -> None:
+        """Should not include return_code when not provided."""
+        output = format_error_json(
+            error_type="Error",
+            error_message="Failed",
+            uid="DE123456789",
+        )
+        data = json.loads(output)
+        assert "return_code" not in data
+
+    def test_contains_retryable(self) -> None:
+        """Should include retryable field."""
+        output = format_error_json(
+            error_type="Error",
+            error_message="Failed",
+            uid="DE123456789",
+            retryable=True,
+        )
+        data = json.loads(output)
+        assert data["retryable"] is True
+
+    def test_contains_timestamp(self) -> None:
+        """Should include ISO format timestamp."""
+        output = format_error_json(
+            error_type="Error",
+            error_message="Failed",
+            uid="DE123456789",
+        )
+        data = json.loads(output)
+        assert "timestamp" in data
+        assert "T" in data["timestamp"]  # ISO format

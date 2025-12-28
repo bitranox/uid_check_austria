@@ -18,7 +18,7 @@ from typing import Any
 import orjson
 import pytest
 
-from finanzonline_uid.adapters.ratelimit import RateLimitStatus, RateLimitTracker
+from finanzonline_uid.adapters.ratelimit import PerUidRateLimitStatus, RateLimitStatus, RateLimitTracker
 
 
 # ============================================================================
@@ -394,3 +394,190 @@ class TestRateLimitFileFormat:
 
         assert "last_cleanup" in metadata
         assert "T" in metadata["last_cleanup"]
+
+
+# ============================================================================
+# Max entries limit
+# ============================================================================
+
+
+class TestRateLimitMaxEntries:
+    """Tests for max entries limit."""
+
+    def test_max_entries_property(self, ratelimit_file: Path) -> None:
+        """max_entries property returns the configured limit."""
+        tracker = RateLimitTracker(
+            ratelimit_file=ratelimit_file,
+            max_queries=10,
+            window_hours=24.0,
+            max_entries=500,
+        )
+        assert tracker.max_entries == 500
+
+    def test_max_entries_default(self, ratelimit_file: Path) -> None:
+        """max_entries defaults to 10000."""
+        tracker = RateLimitTracker(
+            ratelimit_file=ratelimit_file,
+            max_queries=10,
+            window_hours=24.0,
+        )
+        assert tracker.max_entries == 10000
+
+    def test_oldest_entries_trimmed_when_limit_exceeded(self, ratelimit_file: Path) -> None:
+        """Oldest entries are removed when max_entries is exceeded."""
+        tracker = RateLimitTracker(
+            ratelimit_file=ratelimit_file,
+            max_queries=100,
+            window_hours=24.0,
+            max_entries=3,
+        )
+
+        # Pre-populate with 3 entries (at the limit)
+        now = datetime.now(timezone.utc)
+        existing_data: dict[str, Any] = {
+            "api_calls": [
+                {"timestamp": (now - timedelta(hours=3)).isoformat().replace("+00:00", "Z"), "uid": "UID001"},  # Oldest
+                {"timestamp": (now - timedelta(hours=2)).isoformat().replace("+00:00", "Z"), "uid": "UID002"},
+                {"timestamp": (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z"), "uid": "UID003"},  # Newest
+            ],
+            "metadata": {},
+        }
+        ratelimit_file.parent.mkdir(parents=True, exist_ok=True)
+        ratelimit_file.write_bytes(orjson.dumps(existing_data, option=orjson.OPT_INDENT_2))
+
+        # Add a new entry, which should trigger trimming of the oldest
+        tracker.record_call("UID004")
+
+        # Verify: should have 3 entries, oldest (UID001) removed
+        data: dict[str, Any] = orjson.loads(ratelimit_file.read_bytes())
+        entries: list[dict[str, str]] = data["api_calls"]
+        uids = [e["uid"] for e in entries]
+
+        assert len(entries) == 3
+        assert "UID001" not in uids  # Oldest was trimmed
+        assert "UID002" in uids
+        assert "UID003" in uids
+        assert "UID004" in uids
+
+
+# ============================================================================
+# Per-UID rate limiting
+# ============================================================================
+
+
+class TestPerUidRateLimiting:
+    """Tests for per-UID rate limiting."""
+
+    def test_per_uid_limit_property(self, ratelimit_file: Path) -> None:
+        """per_uid_limit property returns the configured limit."""
+        tracker = RateLimitTracker(
+            ratelimit_file=ratelimit_file,
+            max_queries=10,
+            window_hours=24.0,
+            per_uid_limit=5,
+        )
+        assert tracker.per_uid_limit == 5
+
+    def test_per_uid_limit_default(self, ratelimit_file: Path) -> None:
+        """per_uid_limit defaults to 2 (BMF limit)."""
+        tracker = RateLimitTracker(
+            ratelimit_file=ratelimit_file,
+            max_queries=10,
+            window_hours=24.0,
+        )
+        assert tracker.per_uid_limit == 2
+
+    def test_get_uid_status_returns_count(self, ratelimit_file: Path) -> None:
+        """get_uid_status returns count for specific UID."""
+        tracker = RateLimitTracker(
+            ratelimit_file=ratelimit_file,
+            max_queries=100,
+            window_hours=24.0,
+        )
+
+        # Record multiple calls with different UIDs
+        tracker.record_call("DE111111111")
+        tracker.record_call("DE222222222")
+        tracker.record_call("DE111111111")  # Second call for this UID
+
+        status = tracker.get_uid_status("DE111111111")
+
+        assert isinstance(status, PerUidRateLimitStatus)
+        assert status.uid == "DE111111111"
+        assert status.uid_count == 2
+        assert status.per_uid_limit == 2
+        assert status.is_uid_exceeded is True  # 2 >= 2
+
+    def test_get_uid_status_normalizes_uid(self, ratelimit_file: Path) -> None:
+        """get_uid_status normalizes UID to uppercase."""
+        tracker = RateLimitTracker(
+            ratelimit_file=ratelimit_file,
+            max_queries=100,
+            window_hours=24.0,
+        )
+
+        tracker.record_call("DE111111111")
+
+        # Query with different casing and whitespace
+        status = tracker.get_uid_status("  de111111111  ")
+
+        assert status.uid == "DE111111111"
+        assert status.uid_count == 1
+
+    def test_get_uid_status_not_exceeded_under_limit(self, ratelimit_file: Path) -> None:
+        """get_uid_status shows not exceeded when under limit."""
+        tracker = RateLimitTracker(
+            ratelimit_file=ratelimit_file,
+            max_queries=100,
+            window_hours=24.0,
+            per_uid_limit=3,
+        )
+
+        tracker.record_call("DE111111111")
+
+        status = tracker.get_uid_status("DE111111111")
+
+        assert status.uid_count == 1
+        assert status.per_uid_limit == 3
+        assert status.is_uid_exceeded is False
+
+    def test_get_uid_status_returns_zero_for_unknown_uid(self, ratelimit_file: Path) -> None:
+        """get_uid_status returns zero count for never-seen UID."""
+        tracker = RateLimitTracker(
+            ratelimit_file=ratelimit_file,
+            max_queries=100,
+            window_hours=24.0,
+        )
+
+        tracker.record_call("DE111111111")
+
+        status = tracker.get_uid_status("DE999999999")
+
+        assert status.uid_count == 0
+        assert status.is_uid_exceeded is False
+
+    def test_get_uid_status_disabled_returns_not_exceeded(self, ratelimit_file: Path) -> None:
+        """get_uid_status returns not exceeded when tracking is disabled."""
+        tracker = RateLimitTracker(
+            ratelimit_file=ratelimit_file,
+            max_queries=0,  # Disabled
+            window_hours=24.0,
+        )
+
+        status = tracker.get_uid_status("DE111111111")
+
+        assert status.uid_count == 0
+        assert status.is_uid_exceeded is False
+
+    def test_get_uid_status_zero_per_uid_limit_not_exceeded(self, ratelimit_file: Path) -> None:
+        """get_uid_status returns not exceeded when per_uid_limit is 0."""
+        tracker = RateLimitTracker(
+            ratelimit_file=ratelimit_file,
+            max_queries=10,
+            window_hours=24.0,
+            per_uid_limit=0,
+        )
+
+        status = tracker.get_uid_status("DE111111111")
+
+        assert status.is_uid_exceeded is False
