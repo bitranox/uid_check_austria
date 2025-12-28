@@ -4,6 +4,13 @@
 
 `finanzonline_uid` is a Python library and CLI for querying **Level 2 UID checks** (VAT number verification) via the Austrian FinanzOnline web service. It follows Clean Architecture principles with clear separation between domain, application, and adapter layers.
 
+**Key Features:**
+- UID input sanitization (removes copy-paste artifacts, normalizes to uppercase)
+- Retry mode with animated countdown (`--retryminutes` option)
+- Email notifications with HTML formatting
+- Result caching with configurable TTL
+- Rate limit tracking with warning emails
+
 ## Session Initialization
 
 When starting a new session, read and apply the following system prompt files from `/media/srv-main-softdev/projects/softwarestack/systemprompts`:
@@ -67,7 +74,7 @@ finanzonline_uid/
 │   │   └── use_cases.py       # CheckUidUseCase
 │   ├── domain/                # Domain models (Clean Architecture)
 │   │   ├── errors.py          # Domain exceptions
-│   │   ├── models.py          # FinanzOnlineCredentials, UidCheckResult, etc.
+│   │   ├── models.py          # FinanzOnlineCredentials, UidCheckResult, sanitize_uid()
 │   │   └── return_codes.py    # BMF return code definitions
 │   ├── defaultconfig.d/       # Layered config fragments
 │   ├── __init__.py            # Package initialization
@@ -142,6 +149,20 @@ Apply principles from `python_clean_architecture.md` when designing and implemen
 | `info`          | Display package information                      |
 | `hello`         | Test success path                                |
 | `fail`          | Test error handling                              |
+
+### Check Command Options
+
+| Option           | Description                                                |
+|------------------|------------------------------------------------------------|
+| `--interactive`  | Prompt for UID input interactively                         |
+| `--retryminutes` | Retry interval in minutes (requires `--interactive`)       |
+| `--no-email`     | Disable email notification                                 |
+| `--format`       | Output format: `human` or `json`                           |
+| `--recipient`    | Email recipient(s) - can specify multiple times            |
+
+**UID Sanitization:** All UID inputs are automatically cleaned from copy-paste artifacts (whitespace, invisible characters) and normalized to uppercase.
+
+**Retry Mode:** With `--retryminutes N`, the CLI retries on transient errors (network, rate limit) every N minutes with an animated countdown. Email is only sent on final success or error.
 
 ## Key Dependencies
 

@@ -1221,3 +1221,176 @@ def test_when_check_with_interactive_short_flag_prompts_for_uid(
 
                 assert result.exit_code == 0
                 assert "VALID" in result.output
+
+
+# ======================== Retry Minutes Tests ========================
+
+
+@pytest.mark.os_agnostic
+def test_when_retryminutes_used_without_interactive_it_exits_two(
+    cli_runner: CliRunner,
+) -> None:
+    """Verify --retryminutes without --interactive exits with error."""
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "DE123456789", "--retryminutes", "1"],
+    )
+
+    assert result.exit_code == 2
+    assert "--retryminutes requires --interactive" in result.output
+
+
+@pytest.mark.os_agnostic
+def test_when_retryminutes_with_interactive_is_accepted(
+    cli_runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_fo_config: Any,
+    mock_uid_result_valid: Any,
+) -> None:
+    """Verify --retryminutes with --interactive succeeds on first attempt."""
+    from unittest.mock import MagicMock, patch
+
+    mock_config_obj = MagicMock()
+    mock_config_obj.as_dict.return_value = {}
+
+    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
+        mock_get_config.return_value = mock_config_obj
+
+        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
+            mock_load_fo.return_value = mock_fo_config
+
+            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
+                mock_use_case = MagicMock()
+                mock_use_case.execute.return_value = mock_uid_result_valid
+                mock_use_case_class.return_value = mock_use_case
+
+                result: Result = cli_runner.invoke(
+                    cli_mod.cli,
+                    ["check", "--interactive", "--retryminutes", "1", "--no-email"],
+                    input="DE123456789\n",
+                )
+
+                assert result.exit_code == 0
+                assert "VALID" in result.output
+
+
+# ======================== UID Sanitization Tests ========================
+
+
+@pytest.mark.os_agnostic
+def test_when_uid_has_spaces_it_is_sanitized(
+    cli_runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_fo_config: Any,
+    mock_uid_result_valid: Any,
+) -> None:
+    """Verify UID with spaces is sanitized before check."""
+    from unittest.mock import MagicMock, patch
+
+    mock_config_obj = MagicMock()
+    mock_config_obj.as_dict.return_value = {}
+    captured_uid: list[str] = []
+
+    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
+        mock_get_config.return_value = mock_config_obj
+
+        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
+            mock_load_fo.return_value = mock_fo_config
+
+            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
+                mock_use_case = MagicMock()
+
+                def capture_execute(*, credentials: Any, uid_tn: str, target_uid: str) -> Any:
+                    captured_uid.append(target_uid)
+                    return mock_uid_result_valid
+
+                mock_use_case.execute.side_effect = capture_execute
+                mock_use_case_class.return_value = mock_use_case
+
+                result: Result = cli_runner.invoke(
+                    cli_mod.cli,
+                    ["check", "DE 123 456 789", "--no-email"],
+                )
+
+                assert result.exit_code == 0
+                assert captured_uid == ["DE123456789"]
+
+
+@pytest.mark.os_agnostic
+def test_when_uid_is_lowercase_it_is_uppercased(
+    cli_runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_fo_config: Any,
+    mock_uid_result_valid: Any,
+) -> None:
+    """Verify lowercase UID is uppercased before check."""
+    from unittest.mock import MagicMock, patch
+
+    mock_config_obj = MagicMock()
+    mock_config_obj.as_dict.return_value = {}
+    captured_uid: list[str] = []
+
+    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
+        mock_get_config.return_value = mock_config_obj
+
+        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
+            mock_load_fo.return_value = mock_fo_config
+
+            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
+                mock_use_case = MagicMock()
+
+                def capture_execute(*, credentials: Any, uid_tn: str, target_uid: str) -> Any:
+                    captured_uid.append(target_uid)
+                    return mock_uid_result_valid
+
+                mock_use_case.execute.side_effect = capture_execute
+                mock_use_case_class.return_value = mock_use_case
+
+                result: Result = cli_runner.invoke(
+                    cli_mod.cli,
+                    ["check", "de123456789", "--no-email"],
+                )
+
+                assert result.exit_code == 0
+                assert captured_uid == ["DE123456789"]
+
+
+@pytest.mark.os_agnostic
+def test_when_interactive_uid_has_artifacts_it_is_sanitized(
+    cli_runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_fo_config: Any,
+    mock_uid_result_valid: Any,
+) -> None:
+    """Verify interactive UID input with copy-paste artifacts is sanitized."""
+    from unittest.mock import MagicMock, patch
+
+    mock_config_obj = MagicMock()
+    mock_config_obj.as_dict.return_value = {}
+    captured_uid: list[str] = []
+
+    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
+        mock_get_config.return_value = mock_config_obj
+
+        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
+            mock_load_fo.return_value = mock_fo_config
+
+            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
+                mock_use_case = MagicMock()
+
+                def capture_execute(*, credentials: Any, uid_tn: str, target_uid: str) -> Any:
+                    captured_uid.append(target_uid)
+                    return mock_uid_result_valid
+
+                mock_use_case.execute.side_effect = capture_execute
+                mock_use_case_class.return_value = mock_use_case
+
+                # Simulate input with tabs and extra spaces (common PDF copy-paste)
+                result: Result = cli_runner.invoke(
+                    cli_mod.cli,
+                    ["check", "--interactive", "--no-email"],
+                    input="  de 123\t456 789  \n",
+                )
+
+                assert result.exit_code == 0
+                assert captured_uid == ["DE123456789"]

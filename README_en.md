@@ -37,6 +37,8 @@ Verifying VAT IDs through the FinanzOnline web portal requires logging in, navig
 - Human-readable and JSON output formats
 - Result caching with configurable TTL (default: 48 hours)
 - Rate limit tracking with warning emails
+- **UID input sanitization** - automatic cleanup of copy-paste artifacts (whitespace, invisible characters)
+- **Retry mode** - automatic retry on transient errors with animated countdown
 - Layered configuration system with lib_layered_config
 - Rich structured logging with lib_log_rich
 - Exit-code and messaging helpers powered by lib_cli_exit_tools
@@ -158,11 +160,36 @@ For alternative install paths (pip, pipx, uvx, source builds), see [INSTALL_en.m
 # check per commandline
 uvx finanzonline_uid@latest check NL123456789
 
-# check interactive (will ask for the UID to check) : 
+# check interactive (will ask for the UID to check) :
 uvx finanzonline_uid@latest check --interactive
+
+# retry mode: retry every 5 minutes on transient errors
+uvx finanzonline_uid@latest check --interactive --retryminutes 5
 ```
 
-the results will be displayed and a email with the results will be sent to the configured email adresses. 
+The results will be displayed and an email with the results will be sent to the configured email addresses.
+
+### UID Input Sanitization
+
+UID numbers are automatically cleaned from copy-paste artifacts:
+- Whitespace, tabs, and newlines are removed
+- Invisible characters (zero-width spaces, BOM) are removed
+- Automatic uppercase normalization
+
+Example: `"  de 123 456 789  "` becomes `"DE123456789"`
+
+### Retry Mode
+
+With `--retryminutes` you can automatically retry on transient errors (network, rate-limit):
+
+```bash
+# Retry every 5 minutes until success or cancelled with Ctrl+C
+finanzonline-uid check --interactive --retryminutes 5
+```
+
+- Animated countdown shows time until next attempt
+- Email is only sent on success or final error
+- Permanent errors (invalid UID, authentication) abort immediately 
 
 ---
 

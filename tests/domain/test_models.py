@@ -16,6 +16,7 @@ from finanzonline_uid.domain.models import (
     SessionInfo,
     UidCheckRequest,
     UidCheckResult,
+    sanitize_uid,
 )
 
 
@@ -276,3 +277,107 @@ class TestUidCheckResult:
         ts = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         result = UidCheckResult(uid="DE123", return_code=0, message="OK", timestamp=ts)
         assert result.timestamp == ts
+
+
+class TestSanitizeUid:
+    """Tests for UID sanitization function.
+
+    Validates cleaning of copy-paste artifacts from UID inputs.
+    """
+
+    def test_strips_leading_trailing_whitespace(self) -> None:
+        """Should remove leading and trailing spaces."""
+        assert sanitize_uid("  DE123456789  ") == "DE123456789"
+
+    def test_removes_internal_whitespace(self) -> None:
+        """Should remove spaces between characters."""
+        assert sanitize_uid("DE 123 456 789") == "DE123456789"
+
+    def test_removes_tabs_and_newlines(self) -> None:
+        """Should remove tab and newline characters."""
+        assert sanitize_uid("DE\t123\n456") == "DE123456"
+
+    def test_removes_carriage_return(self) -> None:
+        """Should remove carriage return characters."""
+        assert sanitize_uid("DE123\r\n456") == "DE123456"
+
+    def test_removes_non_breaking_spaces(self) -> None:
+        """Should remove non-breaking space (U+00A0)."""
+        assert sanitize_uid("DE\u00a0123") == "DE123"
+
+    def test_removes_zero_width_spaces(self) -> None:
+        """Should remove zero-width space (U+200B)."""
+        assert sanitize_uid("DE\u200b123") == "DE123"
+
+    def test_removes_zero_width_non_joiner(self) -> None:
+        """Should remove zero-width non-joiner (U+200C)."""
+        assert sanitize_uid("DE\u200c123") == "DE123"
+
+    def test_removes_zero_width_joiner(self) -> None:
+        """Should remove zero-width joiner (U+200D)."""
+        assert sanitize_uid("DE\u200d123") == "DE123"
+
+    def test_removes_bom(self) -> None:
+        """Should remove byte order mark (U+FEFF)."""
+        assert sanitize_uid("\ufeffDE123") == "DE123"
+
+    def test_removes_word_joiner(self) -> None:
+        """Should remove word joiner (U+2060)."""
+        assert sanitize_uid("DE\u2060123") == "DE123"
+
+    def test_removes_en_space(self) -> None:
+        """Should remove en space (U+2002)."""
+        assert sanitize_uid("DE\u2002123") == "DE123"
+
+    def test_removes_em_space(self) -> None:
+        """Should remove em space (U+2003)."""
+        assert sanitize_uid("DE\u2003123") == "DE123"
+
+    def test_removes_ideographic_space(self) -> None:
+        """Should remove ideographic space (U+3000)."""
+        assert sanitize_uid("DE\u3000123") == "DE123"
+
+    def test_removes_control_characters(self) -> None:
+        """Should remove control characters like null byte."""
+        assert sanitize_uid("DE\x00123") == "DE123"
+
+    def test_uppercase_normalizes(self) -> None:
+        """Should convert to uppercase."""
+        assert sanitize_uid("de123456789") == "DE123456789"
+
+    def test_uppercase_mixed_case(self) -> None:
+        """Should uppercase mixed case input."""
+        assert sanitize_uid("AtU12345678") == "ATU12345678"
+
+    def test_handles_empty_string(self) -> None:
+        """Should return empty string for empty input."""
+        assert sanitize_uid("") == ""
+
+    def test_handles_whitespace_only(self) -> None:
+        """Should return empty string for whitespace-only input."""
+        assert sanitize_uid("   \t\n  ") == ""
+
+    def test_preserves_valid_uid(self) -> None:
+        """Should not modify already clean UID."""
+        assert sanitize_uid("ATU12345678") == "ATU12345678"
+
+    def test_real_world_copy_paste_pdf(self) -> None:
+        """Should handle typical PDF copy-paste artifacts."""
+        # Simulates: BOM + zero-width + spaces + tabs + non-breaking space
+        assert sanitize_uid("\ufeff\u200b DE 123\t456\n789 \u00a0") == "DE123456789"
+
+    def test_real_world_copy_paste_excel(self) -> None:
+        """Should handle typical Excel copy-paste (tabs, CRLF)."""
+        assert sanitize_uid("DE123456789\t\r\n") == "DE123456789"
+
+    def test_austrian_uid_with_spaces(self) -> None:
+        """Should clean Austrian UID with spaces."""
+        assert sanitize_uid("AT U 123 456 78") == "ATU12345678"
+
+    def test_german_uid_lowercase(self) -> None:
+        """Should clean and uppercase German UID."""
+        assert sanitize_uid("de 123 456 789") == "DE123456789"
+
+    def test_french_uid_with_letter(self) -> None:
+        """Should handle French UID format with letters."""
+        assert sanitize_uid("fr 12 345 678 901") == "FR12345678901"

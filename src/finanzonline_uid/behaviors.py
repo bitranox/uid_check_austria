@@ -32,26 +32,6 @@ CANONICAL_GREETING = "Hello World"
 logger = logging.getLogger(__name__)
 
 
-def _target_stream(preferred: TextIO | None) -> TextIO:
-    """Return the stream that should hear the greeting."""
-
-    return preferred if preferred is not None else sys.stdout
-
-
-def _greeting_line() -> str:
-    """Return the greeting exactly as it should appear."""
-
-    return f"{CANONICAL_GREETING}\n"
-
-
-def _flush_if_possible(stream: TextIO) -> None:
-    """Flush the stream when the stream knows how to flush."""
-
-    flush = getattr(stream, "flush", None)
-    if callable(flush):
-        flush()
-
-
 def emit_greeting(*, stream: TextIO | None = None) -> None:
     r"""Write the canonical greeting to the provided text stream.
 
@@ -75,11 +55,11 @@ def emit_greeting(*, stream: TextIO | None = None) -> None:
         >>> buffer.getvalue() == "Hello World\n"
         True
     """
-
     logger.info("Emitting canonical greeting", extra={"greeting": CANONICAL_GREETING})
-    target = _target_stream(stream)
-    target.write(_greeting_line())
-    _flush_if_possible(target)
+    target = stream if stream is not None else sys.stdout
+    target.write(f"{CANONICAL_GREETING}\n")
+    if hasattr(target, "flush"):
+        target.flush()
 
 
 def raise_intentional_failure() -> None:

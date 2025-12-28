@@ -33,12 +33,15 @@ finanzonline-uid check [OPTIONS] [UID]
 
 **Options:**
 
-| Option          | Short | Default        | Description                                           |
-|-----------------|-------|----------------|-------------------------------------------------------|
-| `--interactive` | `-i`  | `False`        | Interactive mode: prompt for UID                      |
-| `--no-email`    | -     | `False`        | Disable email notification (email enabled by default) |
-| `--format`      | -     | `human`        | Output format: `human` or `json`                      |
-| `--recipient`   | -     | Config default | Email recipient (can specify multiple times)          |
+| Option           | Short | Default        | Description                                             |
+|------------------|-------|----------------|---------------------------------------------------------|
+| `--interactive`  | `-i`  | `False`        | Interactive mode: prompt for UID                        |
+| `--no-email`     | -     | `False`        | Disable email notification (email enabled by default)   |
+| `--format`       | -     | `human`        | Output format: `human` or `json`                        |
+| `--recipient`    | -     | Config default | Email recipient (can specify multiple times)            |
+| `--retryminutes` | -     | `None`         | Retry interval in minutes (requires `--interactive`)    |
+
+> **Note:** UID inputs are automatically sanitized: whitespace and invisible characters are removed, and converted to uppercase.
 
 **Exit Codes:**
 
@@ -68,9 +71,22 @@ finanzonline-uid check DE123456789 --recipient admin@example.com --recipient fin
 # Interactive mode
 finanzonline-uid check --interactive
 
+# Retry mode: retry every 5 minutes until success
+finanzonline-uid check --interactive --retryminutes 5
+
 # With profile
 finanzonline-uid --profile production check DE123456789
 ```
+
+**Retry Mode (`--retryminutes`):**
+
+The retry mode automatically retries the check on transient errors:
+
+- Shows animated countdown with time until next attempt
+- Only retries on transient errors (network, session, rate-limit)
+- Aborts immediately on permanent errors (invalid UID, authentication)
+- Email is only sent on success or final error
+- Can be cancelled anytime with Ctrl+C
 
 ---
 

@@ -70,6 +70,52 @@ def _validate_pattern(value: str, field_name: str, pattern: re.Pattern[str], des
         raise ValueError(f"{field_name} must be {description}, got: {value!r}")
 
 
+# =============================================================================
+# UID Sanitization
+# =============================================================================
+
+# Characters to strip: whitespace (including Unicode spaces) and invisible chars
+_CHARS_TO_STRIP = frozenset(
+    " \t\n\r\v\f"  # ASCII whitespace
+    "\u00a0"  # Non-breaking space
+    "\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a"  # En/Em spaces
+    "\u202f\u205f\u3000"  # Narrow no-break, medium mathematical, ideographic space
+    "\u200b\u200c\u200d"  # Zero-width space, non-joiner, joiner
+    "\ufeff\u2060"  # BOM, word joiner
+)
+
+
+def sanitize_uid(uid: str) -> str:
+    """Sanitize UID from copy-paste artifacts.
+
+    Removes whitespace, non-printable characters, and normalizes to uppercase.
+    Designed to clean UIDs that may contain artifacts from copying from PDFs,
+    Excel, emails, or web pages.
+
+    Args:
+        uid: Raw UID string (may contain copy-paste artifacts).
+
+    Returns:
+        Cleaned UID string (uppercase, no whitespace, no control chars).
+
+    Examples:
+        >>> sanitize_uid("  DE 123 456 789  ")
+        'DE123456789'
+        >>> sanitize_uid("de123456789")
+        'DE123456789'
+        >>> sanitize_uid("AT U 123 456 78")
+        'ATU12345678'
+        >>> sanitize_uid("")
+        ''
+    """
+    import unicodedata
+
+    # Single pass: remove whitespace, invisible chars, and control chars
+    result = "".join(c for c in uid if c not in _CHARS_TO_STRIP and unicodedata.category(c) != "Cc")
+
+    return result.upper()
+
+
 @dataclass(frozen=True, slots=True)
 class Diagnostics:
     """Debug/diagnostic information for error reporting.

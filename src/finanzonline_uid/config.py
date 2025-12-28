@@ -36,17 +36,33 @@ from .enums import EmailFormat
 
 
 # =============================================================================
-# Configuration Parsing Helpers
+# Configuration Parsing Helpers (shared with mail.py)
 # =============================================================================
 
 
-def _parse_float(raw: Any, default: float) -> float:
-    """Parse a float value with fallback to default."""
+def parse_float(raw: Any, default: float) -> float:
+    """Parse a float value with fallback to default.
+
+    Args:
+        raw: Raw config value (int, float, or other).
+        default: Default value if parsing fails.
+
+    Returns:
+        Parsed float or default.
+    """
     return float(raw) if isinstance(raw, (int, float)) else default
 
 
-def _parse_int(raw: Any, default: int) -> int:
-    """Parse an integer value with fallback to default."""
+def parse_int(raw: Any, default: int) -> int:
+    """Parse an integer value with fallback to default.
+
+    Args:
+        raw: Raw config value.
+        default: Default value if parsing fails.
+
+    Returns:
+        Parsed integer or default.
+    """
     if isinstance(raw, int):
         return raw
     if isinstance(raw, float):
@@ -54,8 +70,15 @@ def _parse_int(raw: Any, default: int) -> int:
     return default
 
 
-def _parse_string_list(raw: object) -> list[str]:
-    """Parse a string list from config, handling JSON strings from .env files."""
+def parse_string_list(raw: object) -> list[str]:
+    """Parse a string list from config, handling JSON strings from .env files.
+
+    Args:
+        raw: Raw config value (list or JSON string).
+
+    Returns:
+        List of strings, empty list if parsing fails.
+    """
     import json
 
     if isinstance(raw, list):
@@ -397,22 +420,22 @@ def load_finanzonline_config(config: Config) -> FinanzOnlineConfig:
         raise ConfigurationError(f"finanzonline.uid_tn must start with 'ATU', got: {uid_tn_str}")
 
     # Optional settings with defaults
-    session_timeout = _parse_float(fo_section.get("session_timeout", 30.0), 30.0)
-    query_timeout = _parse_float(fo_section.get("query_timeout", 30.0), 30.0)
+    session_timeout = parse_float(fo_section.get("session_timeout", 30.0), 30.0)
+    query_timeout = parse_float(fo_section.get("query_timeout", 30.0), 30.0)
 
     # Parse default_recipients - handle JSON string from .env files
-    default_recipients = _parse_string_list(fo_section.get("default_recipients", []))
+    default_recipients = parse_string_list(fo_section.get("default_recipients", []))
 
     # Parse email_format - defaults to "both" (HTML and plain text)
     email_format = _parse_email_format(fo_section.get("email_format", "both"), EmailFormat.BOTH)
 
     # Parse cache settings - defaults to 48 hours with platform-specific path
-    cache_results_hours = _parse_float(fo_section.get("cache_results_hours", 48.0), 48.0)
+    cache_results_hours = parse_float(fo_section.get("cache_results_hours", 48.0), 48.0)
     cache_file = _parse_cache_file_path(fo_section.get("cache_file"))
 
     # Parse rate limit settings - defaults to 50 queries per 24 hours
-    ratelimit_queries = _parse_int(fo_section.get("ratelimit_queries", 50), 50)
-    ratelimit_hours = _parse_float(fo_section.get("ratelimit_hours", 24.0), 24.0)
+    ratelimit_queries = parse_int(fo_section.get("ratelimit_queries", 50), 50)
+    ratelimit_hours = parse_float(fo_section.get("ratelimit_hours", 24.0), 24.0)
     ratelimit_file = _parse_ratelimit_file_path(fo_section.get("ratelimit_file"))
 
     return FinanzOnlineConfig(
@@ -437,4 +460,7 @@ __all__ = [
     "get_default_config_path",
     "load_app_config",
     "load_finanzonline_config",
+    "parse_float",
+    "parse_int",
+    "parse_string_list",
 ]

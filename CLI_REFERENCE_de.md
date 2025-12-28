@@ -33,12 +33,15 @@ finanzonline-uid check [OPTIONEN] [UID]
 
 **Optionen:**
 
-| Option          | Kurz  | Standard        | Beschreibung                                             |
-|-----------------|-------|-----------------|----------------------------------------------------------|
-| `--interactive` | `-i`  | `False`         | Interaktiver Modus: UID eingeben                         |
-| `--no-email`    | -     | `False`         | E-Mail-Benachrichtigung deaktivieren (Standard: aktiviert)|
-| `--format`      | -     | `human`         | Ausgabeformat: `human` oder `json`                       |
-| `--recipient`   | -     | Konfig-Standard | E-Mail-Empfänger (kann mehrfach angegeben werden)        |
+| Option            | Kurz  | Standard        | Beschreibung                                                              |
+|-------------------|-------|-----------------|---------------------------------------------------------------------------|
+| `--interactive`   | `-i`  | `False`         | Interaktiver Modus: UID eingeben                                          |
+| `--no-email`      | -     | `False`         | E-Mail-Benachrichtigung deaktivieren (Standard: aktiviert)                |
+| `--format`        | -     | `human`         | Ausgabeformat: `human` oder `json`                                        |
+| `--recipient`     | -     | Konfig-Standard | E-Mail-Empfänger (kann mehrfach angegeben werden)                         |
+| `--retryminutes`  | -     | `None`          | Wiederholungsintervall in Minuten (nur mit `--interactive`)               |
+
+> **Hinweis:** UID-Eingaben werden automatisch bereinigt: Leerzeichen, unsichtbare Zeichen werden entfernt und in Großbuchstaben umgewandelt.
 
 **Exit-Codes:**
 
@@ -68,9 +71,22 @@ finanzonline-uid check DE123456789 --recipient admin@beispiel.at --recipient fin
 # Interaktiver Modus
 finanzonline-uid check --interactive
 
+# Wiederholungsmodus: alle 5 Minuten wiederholen bis Erfolg
+finanzonline-uid check --interactive --retryminutes 5
+
 # Mit Profil
 finanzonline-uid --profile production check DE123456789
 ```
+
+**Wiederholungsmodus (`--retryminutes`):**
+
+Der Wiederholungsmodus wiederholt die Prüfung automatisch bei temporären Fehlern:
+
+- Zeigt animierten Countdown mit Zeit bis zum nächsten Versuch
+- Wiederholt nur bei vorübergehenden Fehlern (Netzwerk, Session, Rate-Limit)
+- Bricht sofort ab bei permanenten Fehlern (ungültige UID, Authentifizierung)
+- E-Mail wird nur bei Erfolg oder endgültigem Fehler gesendet
+- Abbruch jederzeit mit Ctrl+C möglich
 
 ---
 

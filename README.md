@@ -37,6 +37,8 @@ Die Verifizierung von UID-Nummern über das FinanzOnline-Webportal erfordert Anm
 - Menschenlesbare und JSON-Ausgabeformate
 - Ergebnis-Caching mit konfigurierbarer TTL (Standard: 48 Stunden)
 - Ratenlimit-Tracking mit Warn-E-Mails
+- **UID-Eingabe-Bereinigung** - automatische Entfernung von Copy-Paste-Artefakten (Leerzeichen, unsichtbare Zeichen)
+- **Wiederholungsmodus** - automatische Wiederholung bei temporären Fehlern mit animiertem Countdown
 - Mehrschichtiges Konfigurationssystem mit lib_layered_config
 - Strukturiertes Logging mit lib_log_rich
 - Exit-Code- und Meldungshelfer durch lib_cli_exit_tools
@@ -161,9 +163,34 @@ uvx finanzonline_uid@latest check NL123456789
 
 # Interaktive Prüfung (fragt nach der zu prüfenden UID):
 uvx finanzonline_uid@latest check --interactive
+
+# Wiederholungsmodus: bei temporären Fehlern alle 5 Minuten wiederholen
+uvx finanzonline_uid@latest check --interactive --retryminutes 5
 ```
 
 Die Ergebnisse werden angezeigt und eine E-Mail mit den Ergebnissen wird an die konfigurierten E-Mail-Adressen gesendet.
+
+### UID-Eingabe-Bereinigung
+
+UID-Nummern werden automatisch von Copy-Paste-Artefakten bereinigt:
+- Leerzeichen, Tabs und Zeilenumbrüche werden entfernt
+- Unsichtbare Zeichen (Zero-Width-Spaces, BOM) werden entfernt
+- Automatische Umwandlung in Großbuchstaben
+
+Beispiel: `"  de 123 456 789  "` wird zu `"DE123456789"`
+
+### Wiederholungsmodus
+
+Mit `--retryminutes` können Sie bei temporären Fehlern (Netzwerk, Rate-Limit) automatisch wiederholen lassen:
+
+```bash
+# Alle 5 Minuten wiederholen bis Erfolg oder Abbruch mit Ctrl+C
+finanzonline-uid check --interactive --retryminutes 5
+```
+
+- Animierter Countdown zeigt Zeit bis zum nächsten Versuch
+- E-Mail wird nur bei Erfolg oder endgültigem Fehler gesendet
+- Bei dauerhaften Fehlern (ungültige UID, Authentifizierung) wird sofort abgebrochen
 
 ---
 

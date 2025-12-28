@@ -18,14 +18,20 @@ System Role:
 from __future__ import annotations
 
 import logging
-from typing import Any, Final, Optional, Sequence, Tuple
+import time
+from collections.abc import Sequence
+from typing import Any, Final
 
 import rich_click as click
 from lib_layered_config import Config
+from rich.live import Live
+from rich.panel import Panel
+from rich.text import Text
 
 import lib_cli_exit_tools
 import lib_log_rich.runtime
 from click.core import ParameterSource
+from lib_cli_exit_tools.adapters.signals import SigIntInterrupt
 
 from . import __init__conf__
 from .adapters.finanzonline import FinanzOnlineQueryClient, FinanzOnlineSessionClient
@@ -40,6 +46,7 @@ from .i18n import _, setup_locale
 from .config_deploy import deploy_configuration
 from .config_show import display_config
 from .domain.errors import AuthenticationError, CheckErrorInfo, ConfigurationError, QueryError, SessionError, UidCheckError
+from .domain.models import sanitize_uid
 from .domain.return_codes import CliExitCode, get_return_code_info
 from .enums import DeployTarget, OutputFormat
 from .logging_setup import init_logging
@@ -51,7 +58,7 @@ CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}  # noqa: C408
 TRACEBACK_SUMMARY_LIMIT: Final[int] = 500
 #: Character budget used when verbose tracebacks are enabled.
 TRACEBACK_VERBOSE_LIMIT: Final[int] = 10_000
-TracebackState = Tuple[bool, bool]
+TracebackState = tuple[bool, bool]
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +105,7 @@ def _store_cli_context(
     *,
     traceback: bool,
     config: Config,
-    profile: Optional[str] = None,
+    profile: str | None = None,
 ) -> None:
     """Store CLI state in the Click context for subcommand access.
 
@@ -114,7 +121,7 @@ def _store_cli_context(
     ctx.obj["profile"] = profile
 
 
-def _run_cli(argv: Optional[Sequence[str]]) -> int:
+def _run_cli(argv: Sequence[str] | None) -> int:
     """Execute the CLI via lib_cli_exit_tools with exception handling.
 
     Args:
@@ -160,7 +167,7 @@ def _run_cli(argv: Optional[Sequence[str]]) -> int:
     help=_("Load configuration from a named profile (e.g., 'production', 'test')"),
 )
 @click.pass_context
-def cli(ctx: click.Context, traceback: bool, profile: Optional[str]) -> None:
+def cli(ctx: click.Context, traceback: bool, profile: str | None) -> None:
     """Root command storing global flags and syncing shared traceback state.
 
     Loads configuration once with the profile and stores it in the Click context
@@ -241,7 +248,7 @@ def cli_fail() -> None:
     help=_("Override profile from root command (e.g., 'production', 'test')"),
 )
 @click.pass_context
-def cli_config(ctx: click.Context, format: str, section: Optional[str], profile: Optional[str]) -> None:
+def cli_config(ctx: click.Context, format: str, section: str | None, profile: str | None) -> None:
     """Display the current merged configuration from all sources.
 
     Shows configuration loaded from defaults, application/user config files,
@@ -310,7 +317,7 @@ def _handle_deploy_error(exc: Exception) -> None:
     help=_("Override profile from root command (e.g., 'production', 'test')"),
 )
 @click.pass_context
-def cli_config_deploy(ctx: click.Context, targets: tuple[str, ...], force: bool, profile: Optional[str]) -> None:
+def cli_config_deploy(ctx: click.Context, targets: tuple[str, ...], force: bool, profile: str | None) -> None:
     r"""Deploy default configuration to system or user directories.
 
     Creates configuration files in platform-specific locations:
@@ -389,24 +396,32 @@ def _get_error_info(exc: Exception) -> CheckErrorInfo:
 def _resolve_uid_input(uid: str | None, interactive: bool) -> str:
     """Resolve UID from argument or interactive prompt.
 
+    Applies sanitization to remove copy-paste artifacts (whitespace,
+    non-printable characters) and normalizes to uppercase.
+
     Args:
         uid: UID argument from CLI (may be None).
         interactive: Whether to prompt interactively.
 
     Returns:
-        The resolved UID string.
+        The sanitized UID string (uppercase, no whitespace).
 
     Raises:
         SystemExit: If UID is required but not provided.
+
+    Examples:
+        >>> _resolve_uid_input("  DE 123 456 789  ", False)
+        'DE123456789'
     """
     if interactive:
-        return click.prompt(_("Enter EU VAT ID to verify"), type=str)
-
-    if uid is None:
+        raw_uid = click.prompt(_("Enter EU VAT ID to verify"), type=str)
+    elif uid is None:
         click.echo(_("Error: UID argument is required (or use --interactive)"), err=True)
         raise SystemExit(CliExitCode.CONFIG_ERROR)
+    else:
+        raw_uid = uid
 
-    return uid
+    return sanitize_uid(raw_uid)
 
 
 def _output_check_result(result: Any, output_format: str) -> None:
@@ -465,6 +480,123 @@ def _handle_check_error(
     raise SystemExit(error_info.exit_code)
 
 
+# =============================================================================
+# Retry Loop with Animated Countdown
+# =============================================================================
+
+
+def _format_countdown(seconds_remaining: int, attempt: int) -> Panel:
+    """Format countdown display with attempt info.
+
+    Args:
+        seconds_remaining: Seconds until next attempt.
+        attempt: Current attempt number.
+
+    Returns:
+        Rich Panel with countdown and attempt info.
+    """
+    minutes = seconds_remaining // 60
+    secs = seconds_remaining % 60
+
+    text = Text()
+    text.append("⏳ ", style="yellow")
+    text.append(_("Next attempt in: "), style="white")
+    text.append(f"{minutes:02d}:{secs:02d}", style="bold cyan")
+    text.append("\n")
+    text.append(f"   {_('Attempts so far')}: ", style="dim")
+    text.append(str(attempt), style="bold yellow")
+
+    return Panel(text, title=_("Retry Mode"), border_style="blue")
+
+
+def _wait_with_countdown(seconds: float, attempt: int) -> bool:
+    """Wait with animated countdown display.
+
+    Args:
+        seconds: Total seconds to wait.
+        attempt: Current attempt number for display.
+
+    Returns:
+        True if wait completed, False if interrupted by Ctrl+C.
+    """
+    end_time = time.time() + seconds
+
+    try:
+        with Live(_format_countdown(int(seconds), attempt), refresh_per_second=1) as live:
+            while True:
+                remaining = int(end_time - time.time())
+                if remaining <= 0:
+                    return True
+                live.update(_format_countdown(remaining, attempt))
+                time.sleep(0.5)
+    except (SigIntInterrupt, KeyboardInterrupt):
+        return False
+
+
+def _execute_retry_loop(
+    fo_config: FinanzOnlineConfig,
+    uid: str,
+    retry_minutes: float,
+    config: Config,
+    recipients: list[str],
+) -> tuple[Any, CheckErrorInfo | None]:
+    """Execute UID check with retry loop.
+
+    Uses lib_cli_exit_tools signal handling (SigIntInterrupt on Ctrl+C).
+    Shows animated countdown between attempts.
+
+    Args:
+        fo_config: FinanzOnline configuration with credentials.
+        uid: Target UID to verify.
+        retry_minutes: Minutes between retry attempts.
+        config: Application configuration.
+        recipients: Email recipients list.
+
+    Returns:
+        Tuple of (result, error_info). One will be None.
+    """
+    attempt = 0
+    last_error: CheckErrorInfo | None = None
+
+    while True:
+        attempt += 1
+        logger.info("Retry attempt %d", attempt, extra={"uid": uid})
+
+        try:
+            result = _execute_uid_check(fo_config, uid, config=config, recipients=recipients)
+            return result, None  # Success!
+
+        except (SigIntInterrupt, KeyboardInterrupt):
+            # User pressed Ctrl+C - clean exit
+            click.echo(f"\n{_('Cancelled by user after')} {attempt} {_('attempt(s)')}", err=True)
+            if last_error:
+                return None, last_error
+            return None, CheckErrorInfo(
+                error_type="Cancelled",
+                message=_("Check cancelled by user"),
+                exit_code=CliExitCode.QUERY_ERROR,
+            )
+
+        except (ConfigurationError, AuthenticationError, ValueError) as exc:
+            # Non-retryable errors - stop immediately
+            return None, _get_error_info(exc)
+
+        except (SessionError, QueryError) as exc:
+            error_info = _get_error_info(exc)
+            if not error_info.retryable:
+                return None, error_info
+
+            # Retryable error - show message and wait
+            last_error = error_info
+            click.echo(f"\n{_('Attempt')} {attempt}: {error_info.message}", err=True)
+
+            # Animated countdown (handles Ctrl+C internally)
+            if not _wait_with_countdown(retry_minutes * 60, attempt):
+                # User cancelled during wait
+                click.echo(f"\n{_('Cancelled by user after')} {attempt} {_('attempt(s)')}", err=True)
+                return None, last_error
+
+
 @cli.command("check", context_settings=CLICK_CONTEXT_SETTINGS)
 @click.argument("uid", required=False)
 @click.option(
@@ -493,6 +625,12 @@ def _handle_check_error(
     multiple=True,
     help=_("Email recipient (can specify multiple, uses config default if not specified)"),
 )
+@click.option(
+    "--retryminutes",
+    type=float,
+    default=None,
+    help=_("Retry interval in minutes until check succeeds or canceled (interactive mode only)"),
+)
 @click.pass_context
 def cli_check(
     ctx: click.Context,
@@ -501,6 +639,7 @@ def cli_check(
     no_email: bool,
     output_format: str,
     recipients: tuple[str, ...],
+    retryminutes: float | None,
 ) -> None:
     """Verify an EU VAT ID via FinanzOnline Level 2 query.
 
@@ -523,26 +662,54 @@ def cli_check(
       finanzonline-uid check IT12345678901 --no-email
       finanzonline-uid check ES12345678A --recipient admin@example.com
       finanzonline-uid check --interactive
+      finanzonline-uid check --interactive --retryminutes 5
     """
+    # Validate retryminutes requires interactive mode
+    if retryminutes is not None and not interactive:
+        click.echo(_("Error: --retryminutes requires --interactive mode"), err=True)
+        raise SystemExit(CliExitCode.CONFIG_ERROR)
+
     resolved_uid = _resolve_uid_input(uid, interactive)
     config: Config = ctx.obj["config"]
     recipients_list = list(recipients)
     fo_config: FinanzOnlineConfig | None = None
 
-    extra = {"command": "check", "uid": resolved_uid, "no_email": no_email, "format": output_format}
+    extra = {"command": "check", "uid": resolved_uid, "no_email": no_email, "format": output_format, "retryminutes": retryminutes}
 
     with lib_log_rich.runtime.bind(job_id="cli-check", extra=extra):
         try:
             fo_config = load_finanzonline_config(config)
             logger.info("FinanzOnline configuration loaded", extra={"uid_tn": fo_config.uid_tn})
 
-            result = _execute_uid_check(fo_config, resolved_uid, config=config, recipients=recipients_list)
-            _output_check_result(result, output_format)
+            if retryminutes is not None:
+                # Retry mode - uses retry loop with countdown animation
+                result, error_info = _execute_retry_loop(fo_config, resolved_uid, retryminutes, config, recipients_list)
 
-            if not no_email:
-                _send_check_notification(config=config, fo_config=fo_config, result=result, recipients=recipients_list)
+                if result is not None:
+                    # Success!
+                    _output_check_result(result, output_format)
+                    if not no_email:
+                        _send_check_notification(config=config, fo_config=fo_config, result=result, recipients=recipients_list)
+                    raise SystemExit(CliExitCode.UID_VALID if result.is_valid else CliExitCode.UID_INVALID)
+                elif error_info is not None:
+                    # Error (cancelled or non-retryable)
+                    _handle_check_error(
+                        error_info,
+                        send_notification=not no_email,
+                        config=config,
+                        fo_config=fo_config,
+                        uid=resolved_uid,
+                        recipients=recipients_list,
+                    )
+            else:
+                # Single attempt mode (existing behavior)
+                result = _execute_uid_check(fo_config, resolved_uid, config=config, recipients=recipients_list)
+                _output_check_result(result, output_format)
 
-            raise SystemExit(CliExitCode.UID_VALID if result.is_valid else CliExitCode.UID_INVALID)
+                if not no_email:
+                    _send_check_notification(config=config, fo_config=fo_config, result=result, recipients=recipients_list)
+
+                raise SystemExit(CliExitCode.UID_VALID if result.is_valid else CliExitCode.UID_INVALID)
 
         except (ConfigurationError, AuthenticationError, SessionError, QueryError, ValueError, UidCheckError) as exc:
             error_info = _get_error_info(exc)
@@ -794,7 +961,7 @@ def _send_error_notification(
         logger.warning("Error notification error (non-fatal): %s", e)
 
 
-def main(argv: Optional[Sequence[str]] = None, *, restore_traceback: bool = True) -> int:
+def main(argv: Sequence[str] | None = None, *, restore_traceback: bool = True) -> int:
     """Execute the CLI with error handling and return the exit code.
 
     Provides the single entry point used by console scripts and

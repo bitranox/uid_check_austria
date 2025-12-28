@@ -5,6 +5,34 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 
 
+## [2.2.0] - 2025-12-28
+
+### Added
+
+- **UID input sanitization**: UID numbers are now automatically cleaned from copy-paste artifacts in both interactive and script modes:
+  - Removes all whitespace (spaces, tabs, newlines, non-breaking spaces, Unicode spaces)
+  - Removes zero-width and invisible characters (BOM, zero-width space, joiner, etc.)
+  - Removes control characters
+  - Normalizes to uppercase
+  - Example: `"  de 123 456 789  "` becomes `"DE123456789"`
+
+- **Retry mode with countdown** (`--retryminutes`): New option for interactive mode that retries the check at specified intervals until success or cancellation:
+  - Requires `--interactive` mode
+  - Shows animated countdown display with time until next attempt and total attempts
+  - Only retries on transient errors (network, session, rate limit)
+  - Stops immediately on permanent errors (invalid UID, auth, config)
+  - Email notification sent only on final result (success or final error), not during retries
+  - Handles Ctrl+C gracefully via `lib_cli_exit_tools` signal handling
+  - Example: `finanzonline-uid check --interactive --retryminutes 5`
+
+### Changed
+
+- **Code simplifications** (internal, no API changes):
+  - Consolidated duplicate parsing functions (`parse_float`, `parse_int`, `parse_string_list`) from `mail.py` into `config.py`
+  - Simplified `sanitize_uid()` to use single-pass filtering with combined character set
+  - Inlined tiny helper functions in `behaviors.py` into `emit_greeting()`
+  - Modernized type hints: replaced `Tuple` with `tuple`, `Optional[X]` with `X | None`
+
 ## [2.1.0] - 2025-12-23
 
 ### Fixed
