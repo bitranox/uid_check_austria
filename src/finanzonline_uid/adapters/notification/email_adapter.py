@@ -85,7 +85,7 @@ class EmailNotificationAdapter:
     def __init__(
         self,
         config: EmailConfig,
-        email_format: EmailFormat = EmailFormat.BOTH,
+        email_format: EmailFormat = EmailFormat.HTML,
     ) -> None:
         """Initialize email notification adapter.
 

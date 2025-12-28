@@ -228,7 +228,8 @@ class TestEmailNotificationAdapter:
 
             call_kwargs = mock_send.call_args.kwargs
             assert "Service Unavailable" in call_kwargs["subject"]
-            assert "UNAVAILABLE" in call_kwargs["body"]
+            # Default format is HTML, so check body_html
+            assert "UNAVAILABLE" in call_kwargs["body_html"]
 
     def test_send_result_rate_limited(
         self,
@@ -250,7 +251,8 @@ class TestEmailNotificationAdapter:
 
             call_kwargs = mock_send.call_args.kwargs
             assert "Rate Limited" in call_kwargs["subject"]
-            assert "RATE LIMITED" in call_kwargs["body"]
+            # Default format is HTML, so check body_html
+            assert "RATE LIMITED" in call_kwargs["body_html"]
 
     def test_send_result_no_recipients(
         self,
@@ -468,7 +470,8 @@ class TestSendError:
             )
 
             call_kwargs = mock_send.call_args.kwargs
-            assert "-4" in call_kwargs["body"]
+            # Default format is HTML, so check body_html
+            assert "-4" in call_kwargs["body_html"]
 
     def test_send_error_includes_retryable(self, email_config: EmailConfig) -> None:
         """Should include retryable info in email."""
@@ -486,7 +489,8 @@ class TestSendError:
             )
 
             call_kwargs = mock_send.call_args.kwargs
-            assert "Yes" in call_kwargs["body"]
+            # Default format is HTML, so check body_html
+            assert "Yes" in call_kwargs["body_html"]
 
 
 class TestCachedResultFormatting:
@@ -543,12 +547,12 @@ class TestCachedResultFormatting:
 class TestEmailFormat:
     """Tests for email format configuration."""
 
-    def test_default_format_sends_both(
+    def test_default_format_sends_html_only(
         self,
         valid_result: UidCheckResult,
         email_config: EmailConfig,
     ) -> None:
-        """Should send both formats when using default."""
+        """Should send HTML only when using default format."""
         adapter = EmailNotificationAdapter(email_config)
 
         with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
@@ -556,7 +560,7 @@ class TestEmailFormat:
             adapter.send_result(valid_result, ["test@example.com"])
 
             call_kwargs = mock_send.call_args.kwargs
-            assert call_kwargs["body"] != ""
+            assert call_kwargs["body"] == ""  # No plain text with HTML default
             assert call_kwargs["body_html"] != ""
 
     def test_plain_format_sends_plain_only(self, valid_result: UidCheckResult, email_config: EmailConfig) -> None:

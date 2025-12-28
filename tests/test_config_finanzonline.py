@@ -411,13 +411,13 @@ class TestFinanzOnlineConfigProperties:
 class TestEmailFormatParsing:
     """Email format configuration is parsed correctly."""
 
-    def test_default_email_format_is_both(self, minimal_finanzonline_config_dict: dict[str, Any]) -> None:
-        """Default email format is BOTH when not specified."""
+    def test_default_email_format_is_html(self, minimal_finanzonline_config_dict: dict[str, Any]) -> None:
+        """Default email format is HTML when not specified."""
         config = MockConfig(minimal_finanzonline_config_dict)
 
         result = load_finanzonline_config(config)
 
-        assert result.email_format == EmailFormat.BOTH
+        assert result.email_format == EmailFormat.HTML
 
     def test_html_format_is_parsed(self, minimal_finanzonline_config_dict: dict[str, Any]) -> None:
         """HTML email format is parsed correctly."""
@@ -456,19 +456,19 @@ class TestEmailFormatParsing:
         assert result.email_format == EmailFormat.HTML
 
     def test_invalid_format_uses_default(self, minimal_finanzonline_config_dict: dict[str, Any]) -> None:
-        """Invalid email format falls back to BOTH."""
+        """Invalid email format falls back to HTML."""
         minimal_finanzonline_config_dict["finanzonline"]["email_format"] = "invalid"
         config = MockConfig(minimal_finanzonline_config_dict)
 
         result = load_finanzonline_config(config)
 
-        assert result.email_format == EmailFormat.BOTH
+        assert result.email_format == EmailFormat.HTML
 
     def test_non_string_format_uses_default(self, minimal_finanzonline_config_dict: dict[str, Any]) -> None:
-        """Non-string email format falls back to BOTH."""
+        """Non-string email format falls back to HTML."""
         minimal_finanzonline_config_dict["finanzonline"]["email_format"] = 123
         config = MockConfig(minimal_finanzonline_config_dict)
 
         result = load_finanzonline_config(config)
 
-        assert result.email_format == EmailFormat.BOTH
+        assert result.email_format == EmailFormat.HTML

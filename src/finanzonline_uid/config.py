@@ -369,7 +369,7 @@ class FinanzOnlineConfig:
     session_timeout: float = 30.0
     query_timeout: float = 30.0
     default_recipients: list[str] | None = None
-    email_format: EmailFormat = EmailFormat.BOTH
+    email_format: EmailFormat = EmailFormat.HTML
     cache_results_hours: float = 48.0
     cache_file: Path | None = None
     ratelimit_queries: int = 50
@@ -443,8 +443,8 @@ def load_finanzonline_config(config: Config) -> FinanzOnlineConfig:
     # Parse default_recipients - handle JSON string from .env files
     default_recipients = parse_string_list(fo_section.get("default_recipients", []))
 
-    # Parse email_format - defaults to "both" (HTML and plain text)
-    email_format = _parse_email_format(fo_section.get("email_format", "both"), EmailFormat.BOTH)
+    # Parse email_format - defaults to "html"
+    email_format = _parse_email_format(fo_section.get("email_format", "html"), EmailFormat.HTML)
 
     # Parse cache settings - defaults to 48 hours with platform-specific path
     cache_results_hours = parse_float(fo_section.get("cache_results_hours", 48.0), 48.0)

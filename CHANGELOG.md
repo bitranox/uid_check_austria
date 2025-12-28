@@ -5,6 +5,12 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 
 
+## [2.5.1] - 2025-12-28
+
+### Changed
+
+- **Default email format changed from "both" to "html"**: Email notifications now send HTML-only content by default instead of multipart/alternative (both HTML and plain text). This reduces email size and improves rendering consistency. The `email_format` configuration option can still be set to `"plain"` or `"both"` if needed.
+
 ## [2.5.0] - 2025-12-28
 
 ### Added

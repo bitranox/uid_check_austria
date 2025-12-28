@@ -132,16 +132,16 @@
 # Note: Can be overridden with --recipient CLI option
 # Example: default_recipients = ["admin@example.com", "accounting@example.com"]
 
-# email_format = "both"
+# email_format = "html"
 # Purpose: Email body format for notifications
 # Type: string (one of: "html", "plain", "both")
-# Default: "both" (sends multipart/alternative with both formats)
+# Default: "html" (sends HTML-only emails with rich formatting)
 # Environment: FINANZONLINE_UID___FINANZONLINE__EMAIL_FORMAT
 # Options:
-#   - "html":  Send HTML-only emails (rich formatting)
+#   - "html":  Send HTML-only emails (rich formatting) [DEFAULT]
 #   - "plain": Send plain text-only emails
 #   - "both":  Send multipart/alternative with both formats
-# Example: email_format = "html"
+# Example: email_format = "plain"
 
 # cache_results_hours = 48.0
 # Purpose: Hours to cache valid UID query results (0 = disabled)
