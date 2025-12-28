@@ -3,12 +3,15 @@
 Purpose
 -------
 Transform UID verification results into formatted output for
-console display in either human-readable or JSON format.
+console display in either human-readable, JSON, or HTML format.
 
 Contents
 --------
 * :func:`format_human` - Human-readable console output
 * :func:`format_json` - JSON structured output
+* :func:`format_html` - HTML document output
+* :func:`format_error_human` - Human-readable error output
+* :func:`format_error_json` - JSON error output
 
 System Role
 -----------
@@ -39,7 +42,7 @@ from finanzonline_uid.domain.return_codes import ReturnCodeInfo, get_return_code
 from finanzonline_uid.i18n import _
 
 if TYPE_CHECKING:
-    from finanzonline_uid.domain.models import UidCheckResult
+    from finanzonline_uid.domain.models import Diagnostics, UidCheckResult
 
 
 # ANSI color constants
@@ -62,8 +65,8 @@ def _get_status_display(result: UidCheckResult) -> str:
 def _get_severity_display(info: ReturnCodeInfo) -> str:
     """Get colored severity display string."""
     severity_colors = {"success": _GREEN, "warning": _YELLOW, "error": _RED, "critical": _RED}
-    color = severity_colors.get(info.severity.value, _RESET)
-    return f"{color}{info.severity.value.upper()}{_RESET}"
+    color = severity_colors.get(info.severity, _RESET)
+    return f"{color}{info.severity.upper()}{_RESET}"
 
 
 def _format_address_lines(address_lines: list[str]) -> list[str]:
@@ -166,7 +169,7 @@ def format_json(result: UidCheckResult) -> str:
         "is_valid": result.is_valid,
         "return_code": result.return_code,
         "message": result.message,
-        "severity": info.severity.value,
+        "severity": info.severity,
         "retryable": info.retryable,
         "timestamp": result.timestamp.isoformat(),
     }
@@ -181,5 +184,151 @@ def format_json(result: UidCheckResult) -> str:
                 "text": result.address.as_text(),
             }
         data["company"] = company
+
+    return json.dumps(data, indent=2)
+
+
+def format_html(result: UidCheckResult) -> str:
+    """Format UID check result as HTML document.
+
+    Produces a complete, styled HTML document suitable for saving
+    to file, viewing in a browser, or printing.
+
+    Args:
+        result: UID verification result to format.
+
+    Returns:
+        HTML document string.
+
+    Examples:
+        >>> from datetime import datetime, timezone
+        >>> from finanzonline_uid.domain.models import UidCheckResult
+        >>> result = UidCheckResult(
+        ...     uid="DE123456789",
+        ...     return_code=0,
+        ...     message="UID is valid",
+        ...     timestamp=datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        ... )
+        >>> output = format_html(result)
+        >>> "DE123456789" in output
+        True
+        >>> "<!DOCTYPE html>" in output
+        True
+    """
+    from finanzonline_uid.adapters.formatting import format_result_html
+
+    return format_result_html(result)
+
+
+def _format_diagnostics_section(diagnostics: "Diagnostics") -> list[str]:
+    """Format diagnostics section for human-readable output."""
+    lines = ["", f"{_BOLD}{_('Diagnostic Information')}{_RESET}", "-" * 30]
+    for key, value in diagnostics.as_dict().items():
+        lines.append(f"{key.replace('_', ' ').title()}: {value}")
+    return lines
+
+
+def format_error_human(
+    error_type: str,
+    error_message: str,
+    uid: str,
+    return_code: int | None = None,
+    retryable: bool = False,
+    diagnostics: "Diagnostics | None" = None,
+) -> str:
+    """Format error as human-readable text for CLI display.
+
+    Produces colored console output suitable for terminal display.
+    Uses ANSI escape codes for color highlighting.
+
+    Args:
+        error_type: Type of error (e.g., "Authentication Error").
+        error_message: Error message details.
+        uid: The UID that was being checked.
+        return_code: Optional return code from BMF.
+        retryable: Whether the error is retryable.
+        diagnostics: Optional Diagnostics object for debugging.
+
+    Returns:
+        Formatted string for console output.
+    """
+    from datetime import datetime, timezone
+
+    lines = [
+        f"{_RED}{_BOLD}{_('UID Check ERROR')}{_RESET}",
+        "=" * 40,
+        f"{_('UID:')}         {uid}",
+        f"{_('Status:')}      {_RED}{_BOLD}{_('ERROR')}{_RESET}",
+        f"{_('Error Type:')}  {_RED}{error_type}{_RESET}",
+        f"{_('Message:')}     {error_message}",
+    ]
+
+    if return_code is not None:
+        info = get_return_code_info(return_code)
+        lines.extend(
+            [
+                f"{_('Return Code:')} {return_code}",
+                f"{_('Meaning:')}     {info.meaning}",
+                f"{_('Severity:')}    {_get_severity_display(info)}",
+            ]
+        )
+
+    lines.extend(
+        [
+            f"{_('Retryable:')}   {_('Yes') if retryable else _('No')}",
+            f"{_('Timestamp:')}   {format_local_time(datetime.now(timezone.utc))}",
+        ]
+    )
+
+    if diagnostics and not diagnostics.is_empty:
+        lines.extend(_format_diagnostics_section(diagnostics))
+
+    return "\n".join(lines)
+
+
+def format_error_json(
+    error_type: str,
+    error_message: str,
+    uid: str,
+    return_code: int | None = None,
+    retryable: bool = False,
+    diagnostics: "Diagnostics | None" = None,
+) -> str:
+    """Format error as JSON for CLI display.
+
+    Produces structured JSON output suitable for programmatic
+    consumption and piping to other tools.
+
+    Args:
+        error_type: Type of error (e.g., "Authentication Error").
+        error_message: Error message details.
+        uid: The UID that was being checked.
+        return_code: Optional return code from BMF.
+        retryable: Whether the error is retryable.
+        diagnostics: Optional Diagnostics object for debugging.
+
+    Returns:
+        JSON string representation.
+    """
+    from datetime import datetime, timezone
+
+    data: dict[str, Any] = {
+        "uid": uid,
+        "is_valid": False,
+        "error": True,
+        "error_type": error_type,
+        "message": error_message,
+        "retryable": retryable,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if return_code is not None:
+        info = get_return_code_info(return_code)
+        data["return_code"] = return_code
+        data["meaning"] = info.meaning
+        data["severity"] = info.severity
+
+    if diagnostics and not diagnostics.is_empty:
+        data["diagnostics"] = diagnostics.as_dict()
 
     return json.dumps(data, indent=2)

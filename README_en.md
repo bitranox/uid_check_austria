@@ -35,6 +35,7 @@ Verifying VAT IDs through the FinanzOnline web portal requires logging in, navig
 - Automatic email notifications with HTML formatting (enabled by default)
 - **Multi-language support** - English, German, Spanish, French, Russian
 - Human-readable and JSON output formats
+- **File output** - save valid results as text files (`--outputdir`)
 - Result caching with configurable TTL (default: 48 hours)
 - Rate limit tracking with warning emails
 - **UID input sanitization** - automatic cleanup of copy-paste artifacts (whitespace, invisible characters)
@@ -92,6 +93,8 @@ Configure via `finanzonline.ratelimit_queries` and `finanzonline.ratelimit_hours
 > This document must be **printed and kept as proof** of the UID verification per § 132 BAO (Bundesabgabenordnung - Austrian Federal Tax Code).
 
 The printed confirmation serves as official documentation for tax audits and must be retained according to Austrian retention requirements (typically 7 years).
+
+**Automatic Download:** Confirmation documents can be automatically downloaded from the FinanzOnline Databox using [finanzonline_databox](https://github.com/bitranox/finanzonline_databox) (also available on [PyPI](https://pypi.org/project/finanzonline_databox/)).
 
 ---
 

@@ -190,3 +190,25 @@
 # Environment: FINANZONLINE_UID___FINANZONLINE__RATELIMIT_FILE
 # Note: Uses file locking for safe concurrent access.
 # Example: ratelimit_file = "/shared/network/rate_limits.json"
+
+# output_dir = ""
+# Purpose: Directory to save valid UID check results as files
+# Type: string (directory path)
+# Default: "" (disabled - no file output)
+# Environment: FINANZONLINE_UID___FINANZONLINE__OUTPUT_DIR
+# Note: Only valid results (return_code=0) are saved. Files are named
+#       <UID>_<YYYY-MM-DD>.<ext> and overwritten if they already exist.
+#       File format/extension is controlled by output_format setting.
+#       Can be overridden with --outputdir CLI option.
+# Example: output_dir = "/var/log/uid-checks/"
+
+# output_format = "html"
+# Purpose: Format for saved UID check result files
+# Type: string ("json", "txt", or "html")
+# Default: "html"
+# Environment: FINANZONLINE_UID___FINANZONLINE__OUTPUT_FORMAT
+# Note: Determines file extension and content format:
+#       - json: Structured JSON data (.json)
+#       - txt: Human-readable plain text (.txt)
+#       - html: Formatted HTML document (.html)
+#       Can be overridden with --outputformat CLI option.

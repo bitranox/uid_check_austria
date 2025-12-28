@@ -315,6 +315,9 @@ msgstr "Konfiguration erfolgreich bereitgestellt"
 msgid "No files were created (all target files already exist)."
 msgstr "Keine Dateien erstellt (alle Zieldateien existieren bereits)."
 
+msgid "All configuration files are already up to date (content unchanged)."
+msgstr "Alle Konfigurationsdateien sind bereits aktuell (Inhalt unverändert)."
+
 msgid "Use --force to overwrite existing configuration files."
 msgstr "Verwenden Sie --force um vorhandene Konfigurationsdateien zu überschreiben."
 
@@ -394,3 +397,16 @@ msgstr "Warnung: E-Mail-Benachrichtigung fehlgeschlagen: {error}"
 
 msgid "Warning: Error notification failed: {error}"
 msgstr "Warnung: Fehlerbenachrichtigung fehlgeschlagen: {error}"
+
+# Output directory and format
+msgid "Directory to save valid UID results as files (overrides config)"
+msgstr "Verzeichnis zum Speichern gültiger UID-Ergebnisse als Dateien (überschreibt Konfiguration)"
+
+msgid "Output file format: json, txt, or html (default: html)"
+msgstr "Ausgabedateiformat: json, txt oder html (Standard: html)"
+
+msgid "Result saved to: {filepath}"
+msgstr "Ergebnis gespeichert in: {filepath}"
+
+msgid "Warning: Could not save result to {filepath}: {error}"
+msgstr "Warnung: Ergebnis konnte nicht in {filepath} gespeichert werden: {error}"

@@ -131,6 +131,8 @@ Authentication credentials for the FinanzOnline web service.
 | `finanzonline.query_timeout`      | `float`     | `30.0`   | Query timeout in seconds                      |
 | `finanzonline.default_recipients` | `list[str]` | `[]`     | Default email recipients for notifications    |
 | `finanzonline.email_format`       | `str`       | `"both"` | Email format: `html`, `plain`, or `both`      |
+| `finanzonline.output_dir`         | `str`       | `""`     | Directory to save valid results as files      |
+| `finanzonline.output_format`      | `str`       | `"html"` | Output file format: `json`, `txt`, or `html`  |
 
 **.env example:**
 ```bash
@@ -141,6 +143,40 @@ FINANZONLINE__UID_TN=ATU12345678
 FINANZONLINE__HERSTELLERID=ATU12345678
 FINANZONLINE__SESSION_TIMEOUT=60.0
 FINANZONLINE__DEFAULT_RECIPIENTS=["admin@example.com"]
+FINANZONLINE__OUTPUT_DIR=/var/log/uid-checks/
+```
+
+---
+
+## File Output Settings
+
+When a valid UID check is performed, the result can be saved to a file.
+
+| Key                           | Type  | Default | Description                                       |
+|-------------------------------|-------|---------|---------------------------------------------------|
+| `finanzonline.output_dir`     | `str` | `""`    | Directory for result files (empty = disabled)     |
+| `finanzonline.output_format`  | `str` | `"html"`| Output file format: `json`, `txt`, or `html`      |
+
+**Output formats:**
+
+| Format | Extension | Description                                        |
+|--------|-----------|---------------------------------------------------|
+| `html` | `.html`   | Styled HTML document (default, best for archiving) |
+| `json` | `.json`   | Structured JSON data (for programmatic use)        |
+| `txt`  | `.txt`    | Plain text, human-readable                         |
+
+**Behavior:**
+- Only valid results (return_code=0) are saved
+- Filename format: `<UID>_<YYYY-MM-DD>.<ext>` (e.g., `DE123456789_2025-12-28.html`)
+- Extension matches the format: `.json`, `.txt`, or `.html`
+- Existing files are overwritten (one file per UID per day per format)
+- Directory is created automatically if it doesn't exist
+- Can be overridden with `--outputdir` and `--outputformat` CLI options
+
+**.env example:**
+```bash
+FINANZONLINE__OUTPUT_DIR=/var/log/uid-checks/
+FINANZONLINE__OUTPUT_FORMAT=html
 ```
 
 ---

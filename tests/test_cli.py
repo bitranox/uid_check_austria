@@ -661,6 +661,34 @@ def test_when_config_deploy_is_invoked_without_profile_it_passes_none(
 
 
 @pytest.mark.os_agnostic
+def test_when_config_command_profile_overrides_root_profile(
+    cli_runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify command-level --profile overrides root --profile."""
+    captured_profiles: list[str | None] = []
+
+    _original_get_config = cli_mod.get_config
+
+    def get_mock(*, profile: str | None = None, **_kwargs: Any) -> Any:
+        captured_profiles.append(profile)
+        return _original_get_config(profile=profile)
+
+    monkeypatch.setattr(cli_mod, "get_config", get_mock)
+
+    # Root-level --profile is "root-profile", command-level is "command-profile"
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["--profile", "root-profile", "config", "--profile", "command-profile"],
+    )
+
+    assert result.exit_code == 0
+    # Command-level profile should override root-level profile
+    # The second call to get_config (from config command) should use "command-profile"
+    assert "command-profile" in captured_profiles
+
+
+@pytest.mark.os_agnostic
 def test_when_an_unknown_command_is_used_a_helpful_error_appears(cli_runner: CliRunner) -> None:
     """Verify unknown command shows No such command error."""
     result: Result = cli_runner.invoke(cli_mod.cli, ["does-not-exist"])
@@ -708,6 +736,8 @@ def mock_fo_config(monkeypatch: pytest.MonkeyPatch) -> Any:
     mock_config.ratelimit_queries = 0  # Disable rate limiting in tests
     mock_config.ratelimit_hours = 24.0
     mock_config.ratelimit_file = None
+    mock_config.output_dir = None  # Disable file output in tests
+    mock_config.output_format = "html"  # Default file format
     return mock_config
 
 
@@ -1394,3 +1424,124 @@ def test_when_interactive_uid_has_artifacts_it_is_sanitized(
 
                 assert result.exit_code == 0
                 assert captured_uid == ["DE123456789"]
+
+
+# --- Tests for _save_result_to_file ---
+
+
+@pytest.mark.os_agnostic
+def test_save_result_to_file_creates_txt_file(
+    tmp_path: Any,
+    mock_uid_result_valid: Any,
+) -> None:
+    """Verify _save_result_to_file creates a txt file with the result."""
+    output_dir = tmp_path / "output"
+    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, "txt")  # pyright: ignore[reportPrivateUsage]
+
+    # Check file was created with correct extension
+    expected_date = mock_uid_result_valid.timestamp.strftime("%Y-%m-%d")
+    expected_file = output_dir / f"{mock_uid_result_valid.uid}_{expected_date}.txt"
+    assert expected_file.exists()
+
+    # Check content contains UID
+    content = expected_file.read_text(encoding="utf-8")
+    assert mock_uid_result_valid.uid in content
+
+
+@pytest.mark.os_agnostic
+def test_save_result_to_file_creates_json_file(
+    tmp_path: Any,
+    mock_uid_result_valid: Any,
+) -> None:
+    """Verify _save_result_to_file creates a json file with the result."""
+    import json
+
+    output_dir = tmp_path / "output"
+    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, "json")  # pyright: ignore[reportPrivateUsage]
+
+    # Check file was created with correct extension
+    expected_date = mock_uid_result_valid.timestamp.strftime("%Y-%m-%d")
+    expected_file = output_dir / f"{mock_uid_result_valid.uid}_{expected_date}.json"
+    assert expected_file.exists()
+
+    # Check content is valid JSON containing UID
+    content = expected_file.read_text(encoding="utf-8")
+    data = json.loads(content)
+    assert data["uid"] == mock_uid_result_valid.uid
+
+
+@pytest.mark.os_agnostic
+def test_save_result_to_file_creates_html_file(
+    tmp_path: Any,
+    mock_uid_result_valid: Any,
+) -> None:
+    """Verify _save_result_to_file creates an html file with the result."""
+    output_dir = tmp_path / "output"
+    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, "html")  # pyright: ignore[reportPrivateUsage]
+
+    # Check file was created with correct extension
+    expected_date = mock_uid_result_valid.timestamp.strftime("%Y-%m-%d")
+    expected_file = output_dir / f"{mock_uid_result_valid.uid}_{expected_date}.html"
+    assert expected_file.exists()
+
+    # Check content is HTML containing UID
+    content = expected_file.read_text(encoding="utf-8")
+    assert "<!DOCTYPE html>" in content
+    assert mock_uid_result_valid.uid in content
+
+
+@pytest.mark.os_agnostic
+def test_save_result_to_file_creates_directory(
+    tmp_path: Any,
+    mock_uid_result_valid: Any,
+) -> None:
+    """Verify _save_result_to_file creates parent directories."""
+    output_dir = tmp_path / "nested" / "output" / "dir"
+    assert not output_dir.exists()
+
+    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, "html")  # pyright: ignore[reportPrivateUsage]
+
+    assert output_dir.exists()
+
+
+@pytest.mark.os_agnostic
+def test_save_result_to_file_handles_permission_error(
+    tmp_path: Any,
+    mock_uid_result_valid: Any,
+    capsys: Any,
+) -> None:
+    """Verify _save_result_to_file handles permission errors gracefully."""
+    from pathlib import Path
+    from unittest.mock import patch
+
+    output_dir = tmp_path / "output"
+
+    # Simulate permission error on mkdir
+    with patch.object(Path, "mkdir", side_effect=PermissionError("Permission denied")):
+        # Should not raise - just print warning
+        cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, "html")  # pyright: ignore[reportPrivateUsage]
+
+    captured = capsys.readouterr()
+    assert "Warning" in captured.err or "Could not save" in captured.err
+
+
+@pytest.mark.os_agnostic
+def test_save_result_to_file_handles_write_error(
+    tmp_path: Any,
+    mock_uid_result_valid: Any,
+    capsys: Any,
+) -> None:
+    """Verify _save_result_to_file handles write errors gracefully."""
+    from pathlib import Path
+    from unittest.mock import patch
+
+    output_dir = tmp_path / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Simulate write error
+    with patch.object(Path, "write_text", side_effect=OSError("Disk full")):
+        # Should not raise - just print warning
+        cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, "html")  # pyright: ignore[reportPrivateUsage]
+
+    captured = capsys.readouterr()
+    assert "Warning" in captured.err or "Could not save" in captured.err

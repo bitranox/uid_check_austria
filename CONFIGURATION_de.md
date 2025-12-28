@@ -131,6 +131,8 @@ Authentifizierungsdaten für den FinanzOnline-Webservice.
 | `finanzonline.query_timeout`      | `float`     | `30.0`       | Abfrage-Timeout in Sekunden                               |
 | `finanzonline.default_recipients` | `list[str]` | `[]`         | Standard-E-Mail-Empfänger für Benachrichtigungen          |
 | `finanzonline.email_format`       | `str`       | `"both"`     | E-Mail-Format: `html`, `plain` oder `both`                |
+| `finanzonline.output_dir`         | `str`       | `""`         | Verzeichnis zum Speichern gültiger Ergebnisse als Dateien |
+| `finanzonline.output_format`      | `str`       | `"html"`     | Ausgabedateiformat: `json`, `txt` oder `html`             |
 
 **.env-Beispiel:**
 ```bash
@@ -141,6 +143,40 @@ FINANZONLINE__UID_TN=ATU12345678
 FINANZONLINE__HERSTELLERID=ATU12345678
 FINANZONLINE__SESSION_TIMEOUT=60.0
 FINANZONLINE__DEFAULT_RECIPIENTS=["admin@beispiel.at"]
+FINANZONLINE__OUTPUT_DIR=/var/log/uid-checks/
+```
+
+---
+
+## Dateiausgabe-Einstellungen
+
+Bei einer gültigen UID-Prüfung kann das Ergebnis in einer Datei gespeichert werden.
+
+| Schlüssel                     | Typ   | Standard | Beschreibung                                         |
+|-------------------------------|-------|----------|------------------------------------------------------|
+| `finanzonline.output_dir`     | `str` | `""`     | Verzeichnis für Ergebnisdateien (leer = deaktiviert) |
+| `finanzonline.output_format`  | `str` | `"html"` | Ausgabedateiformat: `json`, `txt` oder `html`        |
+
+**Ausgabeformate:**
+
+| Format | Erweiterung | Beschreibung                                              |
+|--------|-------------|-----------------------------------------------------------|
+| `html` | `.html`     | Gestaltetes HTML-Dokument (Standard, ideal zur Archivierung) |
+| `json` | `.json`     | Strukturierte JSON-Daten (für programmatische Verwendung) |
+| `txt`  | `.txt`      | Klartext, menschenlesbar                                  |
+
+**Verhalten:**
+- Nur gültige Ergebnisse (return_code=0) werden gespeichert
+- Dateinamenformat: `<UID>_<JJJJ-MM-TT>.<ext>` (z.B. `DE123456789_2025-12-28.html`)
+- Erweiterung entspricht dem Format: `.json`, `.txt` oder `.html`
+- Vorhandene Dateien werden überschrieben (eine Datei pro UID pro Tag pro Format)
+- Verzeichnis wird automatisch erstellt, falls nicht vorhanden
+- Kann mit den CLI-Optionen `--outputdir` und `--outputformat` überschrieben werden
+
+**.env-Beispiel:**
+```bash
+FINANZONLINE__OUTPUT_DIR=/var/log/uid-checks/
+FINANZONLINE__OUTPUT_FORMAT=html
 ```
 
 ---

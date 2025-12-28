@@ -315,6 +315,9 @@ msgstr "Конфигурация успешно развёрнута"
 msgid "No files were created (all target files already exist)."
 msgstr "Файлы не созданы (все целевые файлы уже существуют)."
 
+msgid "All configuration files are already up to date (content unchanged)."
+msgstr "Все конфигурационные файлы уже актуальны (содержимое не изменилось)."
+
 msgid "Use --force to overwrite existing configuration files."
 msgstr "Используйте --force для перезаписи существующих файлов конфигурации."
 
@@ -394,3 +397,16 @@ msgstr "Предупреждение: Ошибка отправки email-уве
 
 msgid "Warning: Error notification failed: {error}"
 msgstr "Предупреждение: Ошибка отправки уведомления об ошибке: {error}"
+
+# Output directory and format
+msgid "Directory to save valid UID results as files (overrides config)"
+msgstr "Каталог для сохранения валидных результатов UID в файлы (переопределяет конфигурацию)"
+
+msgid "Output file format: json, txt, or html (default: html)"
+msgstr "Формат файла вывода: json, txt или html (по умолчанию: html)"
+
+msgid "Result saved to: {filepath}"
+msgstr "Результат сохранён в: {filepath}"
+
+msgid "Warning: Could not save result to {filepath}: {error}"
+msgstr "Предупреждение: Не удалось сохранить результат в {filepath}: {error}"

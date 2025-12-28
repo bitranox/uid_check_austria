@@ -315,6 +315,9 @@ msgstr "Configuration déployée avec succès"
 msgid "No files were created (all target files already exist)."
 msgstr "Aucun fichier n'a été créé (tous les fichiers cibles existent déjà)."
 
+msgid "All configuration files are already up to date (content unchanged)."
+msgstr "Tous les fichiers de configuration sont déjà à jour (contenu inchangé)."
+
 msgid "Use --force to overwrite existing configuration files."
 msgstr "Utilisez --force pour écraser les fichiers de configuration existants."
 
@@ -394,3 +397,16 @@ msgstr "Avertissement : Échec de la notification par e-mail : {error}"
 
 msgid "Warning: Error notification failed: {error}"
 msgstr "Avertissement : Échec de la notification d'erreur : {error}"
+
+# Output directory and format
+msgid "Directory to save valid UID results as files (overrides config)"
+msgstr "Répertoire pour enregistrer les résultats UID valides en fichiers (remplace la configuration)"
+
+msgid "Output file format: json, txt, or html (default: html)"
+msgstr "Format de fichier de sortie : json, txt ou html (par défaut : html)"
+
+msgid "Result saved to: {filepath}"
+msgstr "Résultat enregistré dans : {filepath}"
+
+msgid "Warning: Could not save result to {filepath}: {error}"
+msgstr "Avertissement : Impossible d'enregistrer le résultat dans {filepath} : {error}"

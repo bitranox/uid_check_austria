@@ -21,6 +21,7 @@ BMF UID-Abfrage Webservice: https://finanzonline.bmf.gv.at/fonuid/ws/uidAbfrageS
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, cast
 
@@ -30,6 +31,8 @@ from zeep.transports import Transport
 
 from finanzonline_uid.domain.errors import QueryError, SessionError
 from finanzonline_uid.domain.models import Address, Diagnostics, UidCheckResult
+from finanzonline_uid.domain.return_codes import ReturnCode
+from finanzonline_uid.domain.soap_utils import extract_string_attr
 
 if TYPE_CHECKING:
     from finanzonline_uid.domain.models import (
@@ -39,6 +42,51 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class SoapUidQueryResponse:
+    """Typed representation of SOAP UID query response from FinanzOnline.
+
+    Attributes:
+        return_code: Integer return code from BMF (0 = valid, 1 = invalid, etc.).
+        message: Response message from BMF.
+        name: Company name (only present for valid UIDs).
+        address: Company address (only present for valid UIDs).
+    """
+
+    return_code: int
+    message: str
+    name: str
+    address: Address
+
+    @classmethod
+    def from_zeep(cls, response: Any) -> SoapUidQueryResponse:
+        """Extract typed response from zeep SOAP response object.
+
+        Args:
+            response: Raw zeep response object with rc, msg, name, adrz1-6 attributes.
+
+        Returns:
+            Typed SoapUidQueryResponse with extracted values.
+
+        Note:
+            BMF returns address fields as adrz1-adrz6 (not adr_1-adr_6).
+        """
+        return cls(
+            return_code=int(cast(int, response.rc)) if hasattr(response, "rc") else 0,
+            message=extract_string_attr(response, "msg"),
+            name=extract_string_attr(response, "name"),
+            address=Address(
+                line1=extract_string_attr(response, "adrz1"),
+                line2=extract_string_attr(response, "adrz2"),
+                line3=extract_string_attr(response, "adrz3"),
+                line4=extract_string_attr(response, "adrz4"),
+                line5=extract_string_attr(response, "adrz5"),
+                line6=extract_string_attr(response, "adrz6"),
+            ),
+        )
+
 
 UID_QUERY_SERVICE_WSDL = "https://finanzonline.bmf.gv.at/fonuid/ws/uidAbfrageService.wsdl"
 
@@ -124,8 +172,9 @@ def _build_query_diagnostics(
     response_message = ""
 
     if response is not None:
-        return_code = str(getattr(response, "rc", ""))
-        response_message = str(getattr(response, "msg", "") or "")
+        typed_response = SoapUidQueryResponse.from_zeep(response)
+        return_code = str(typed_response.return_code)
+        response_message = typed_response.message
 
     return Diagnostics(
         operation="uidAbfrage",
@@ -139,38 +188,6 @@ def _build_query_diagnostics(
         response_message=response_message,
         error_detail=error or "",
     )
-
-
-def _extract_address_line(response: Any, attr_name: str) -> str:
-    """Extract a single address line from response, defaulting to empty string.
-
-    Note: BMF returns address fields as adrz1-adrz6 (not adr_1-adr_6).
-    """
-    return str(cast(str, getattr(response, attr_name, "")) or "")
-
-
-def _extract_company_info(response: Any) -> tuple[str, Address | None]:
-    """Extract company name and address from successful query response.
-
-    Args:
-        response: SOAP response with company data.
-
-    Returns:
-        Tuple of (company_name, address) from response.
-
-    Note:
-        BMF returns address fields as adrz1-adrz6 (not adr_1-adr_6 as documented).
-    """
-    name = str(cast(str, response.name) or "") if hasattr(response, "name") else ""
-    address = Address(
-        line1=_extract_address_line(response, "adrz1"),
-        line2=_extract_address_line(response, "adrz2"),
-        line3=_extract_address_line(response, "adrz3"),
-        line4=_extract_address_line(response, "adrz4"),
-        line5=_extract_address_line(response, "adrz5"),
-        line6=_extract_address_line(response, "adrz6"),
-    )
-    return name, address
 
 
 def _handle_query_exception(
@@ -300,26 +317,27 @@ class FinanzOnlineQueryClient:
         response: Any,
     ) -> UidCheckResult:
         """Process SOAP response and build result."""
-        return_code = int(cast(int, response.rc))
-        message = str(cast(str, response.msg) or "")
+        typed_response = SoapUidQueryResponse.from_zeep(response)
 
-        logger.debug("Query response: rc=%d, msg=%s", return_code, message)
+        logger.debug("Query response: rc=%d, msg=%s", typed_response.return_code, typed_response.message)
 
-        if return_code == -1:
+        if typed_response.return_code == ReturnCode.SESSION_INVALID:
             diagnostics = _build_query_diagnostics(session_id, credentials, request, response)
-            raise SessionError(f"Session invalid or expired: {message}", return_code=return_code, diagnostics=diagnostics)
+            raise SessionError(f"Session invalid or expired: {typed_response.message}", return_code=typed_response.return_code, diagnostics=diagnostics)
 
-        name, address = ("", None)
-        if return_code == 0:
-            name, address = _extract_company_info(response)
+        name: str = ""
+        address: Address | None = None
+        if typed_response.return_code == ReturnCode.UID_VALID:
+            name = typed_response.name
+            address = typed_response.address
             logger.info("UID %s is valid: %s", request.uid, name)
         else:
-            logger.info("UID %s verification returned code %d: %s", request.uid, return_code, message)
+            logger.info("UID %s verification returned code %d: %s", request.uid, typed_response.return_code, typed_response.message)
 
         return UidCheckResult(
             uid=request.uid,
-            return_code=return_code,
-            message=message,
+            return_code=typed_response.return_code,
+            message=typed_response.message,
             name=name,
             address=address,
             timestamp=datetime.now(timezone.utc),

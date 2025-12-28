@@ -21,6 +21,7 @@ BMF Session Webservice: https://finanzonline.bmf.gv.at/fon/ws/sessionService.wsd
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
 from zeep import Client
@@ -29,12 +30,51 @@ from zeep.transports import Transport
 
 from finanzonline_uid.domain.errors import AuthenticationError, SessionError
 from finanzonline_uid.domain.models import Diagnostics, SessionInfo
+from finanzonline_uid.domain.return_codes import ReturnCode
 
 if TYPE_CHECKING:
     from finanzonline_uid.domain.models import FinanzOnlineCredentials
 
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class SoapLoginResponse:
+    """Typed representation of SOAP login response from FinanzOnline.
+
+    Attributes:
+        return_code: Integer return code from BMF (0 = success, -4 = auth failure).
+        message: Response message from BMF.
+        session_id: Session identifier (empty string if login failed).
+    """
+
+    return_code: int
+    message: str
+    session_id: str
+
+    @classmethod
+    def from_zeep(cls, response: Any) -> SoapLoginResponse:
+        """Extract typed response from zeep SOAP response object.
+
+        Args:
+            response: Raw zeep response object with rc, msg, id attributes.
+
+        Returns:
+            Typed SoapLoginResponse with extracted values.
+        """
+        return cls(
+            return_code=int(cast(int, response.rc)) if hasattr(response, "rc") else 0,
+            message=str(cast(str, response.msg) or "") if hasattr(response, "msg") else "",
+            session_id=str(cast(str, response.id) or "") if hasattr(response, "id") else "",
+        )
+
+    def masked_session_id(self) -> str:
+        """Return masked session ID for logging."""
+        if not self.session_id:
+            return ""
+        return _mask_credential(self.session_id)
+
 
 SESSION_SERVICE_WSDL = "https://finanzonline.bmf.gv.at/fonws/ws/sessionService.wsdl"
 
@@ -55,10 +95,14 @@ def _mask_credential(value: str, visible_chars: int = 4) -> str:
 
 
 def _format_login_request(credentials: FinanzOnlineCredentials) -> dict[str, str]:
-    """Format login request parameters for debug logging (masked)."""
+    """Format login request parameters for debug logging (masked).
+
+    All sensitive credentials (tid, benid, pin) are masked.
+    Only herstellerid (software producer ID) is shown in full.
+    """
     return {
-        "tid": credentials.tid,
-        "benid": credentials.benid,
+        "tid": _mask_credential(credentials.tid),
+        "benid": _mask_credential(credentials.benid),
         "pin": _mask_credential(credentials.pin),
         "herstellerid": credentials.herstellerid,
     }
@@ -81,11 +125,12 @@ def _format_response_for_logging(response: Any) -> dict[str, Any]:
 
 def _extract_login_response_fields(response: Any) -> tuple[str, str, str]:
     """Extract return code, message, and session ID from login response."""
-    return_code = str(getattr(response, "rc", ""))
-    response_message = str(getattr(response, "msg", "") or "")
-    raw_id = str(getattr(response, "id", "") or "") if hasattr(response, "id") else ""
-    session_id = _mask_credential(raw_id) if raw_id else ""
-    return return_code, response_message, session_id
+    typed_response = SoapLoginResponse.from_zeep(response)
+    return (
+        str(typed_response.return_code),
+        typed_response.message,
+        typed_response.masked_session_id(),
+    )
 
 
 def _build_login_diagnostics(
@@ -222,17 +267,15 @@ class FinanzOnlineSessionClient:
 
     def _process_login_response(self, credentials: FinanzOnlineCredentials, response: Any) -> SessionInfo:
         """Process SOAP login response and build result."""
-        return_code = int(cast(int, response.rc))
-        message = str(cast(str, response.msg) or "")
-        session_id = str(cast(str, response.id) or "") if hasattr(response, "id") else ""
+        typed_response = SoapLoginResponse.from_zeep(response)
 
-        logger.debug("Login response: rc=%d, msg=%s", return_code, message)
+        logger.debug("Login response: rc=%d, msg=%s", typed_response.return_code, typed_response.message)
 
-        if return_code == -4:
+        if typed_response.return_code == ReturnCode.NOT_AUTHORIZED:
             diagnostics = _build_login_diagnostics(credentials, response)
-            raise AuthenticationError(f"Not authorized: {message}", return_code=return_code, diagnostics=diagnostics)
+            raise AuthenticationError(f"Not authorized: {typed_response.message}", return_code=typed_response.return_code, diagnostics=diagnostics)
 
-        return SessionInfo(session_id=session_id, return_code=return_code, message=message)
+        return SessionInfo(session_id=typed_response.session_id, return_code=typed_response.return_code, message=typed_response.message)
 
     def logout(self, session_id: str, credentials: FinanzOnlineCredentials) -> bool:
         """End a FinanzOnline session.
@@ -245,8 +288,8 @@ class FinanzOnlineSessionClient:
             True if logout succeeded, False otherwise.
         """
         logout_request = {
-            "tid": credentials.tid,
-            "benid": credentials.benid,
+            "tid": _mask_credential(credentials.tid),
+            "benid": _mask_credential(credentials.benid),
             "id": _mask_credential(session_id) if session_id else "?",
         }
         logger.debug("Logout request: %s", logout_request)
@@ -262,7 +305,7 @@ class FinanzOnlineSessionClient:
             logger.debug("Logout response: %s", _format_response_for_logging(response))
             return_code = int(cast(int, response.rc)) if hasattr(response, "rc") else -1
 
-            return return_code == 0
+            return return_code == ReturnCode.UID_VALID
 
         except Exception as e:
             # Logout failures are non-fatal, just log and return False

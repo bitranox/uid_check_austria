@@ -28,8 +28,8 @@ class OutputFormat(str, Enum):
         JSON: Machine-readable JSON output format.
 
     Example:
-        >>> OutputFormat.HUMAN.value
-        'human'
+        >>> OutputFormat.HUMAN == "human"
+        True
         >>> OutputFormat.JSON == "json"
         True
     """
@@ -50,8 +50,8 @@ class DeployTarget(str, Enum):
         USER: User-specific configuration (~/.config on Linux).
 
     Example:
-        >>> DeployTarget.USER.value
-        'user'
+        >>> DeployTarget.USER == "user"
+        True
         >>> DeployTarget.APP == "app"
         True
     """
@@ -73,8 +73,8 @@ class EmailFormat(str, Enum):
         BOTH: Send both HTML and plain text (multipart/alternative).
 
     Example:
-        >>> EmailFormat.HTML.value
-        'html'
+        >>> EmailFormat.HTML == "html"
+        True
         >>> EmailFormat.PLAIN == "plain"
         True
     """

@@ -40,6 +40,8 @@ finanzonline-uid check [OPTIONEN] [UID]
 | `--format`        | -     | `human`         | Ausgabeformat: `human` oder `json`                                        |
 | `--recipient`     | -     | Konfig-Standard | E-Mail-Empfänger (kann mehrfach angegeben werden)                         |
 | `--retryminutes`  | -     | `None`          | Wiederholungsintervall in Minuten (nur mit `--interactive`)               |
+| `--outputdir`     | `-o`  | Konfig-Standard | Verzeichnis zum Speichern gültiger Ergebnisse als Dateien                 |
+| `--outputformat`  | -     | `html`          | Ausgabedateiformat: `json`, `txt` oder `html`                             |
 
 > **Hinweis:** UID-Eingaben werden automatisch bereinigt: Leerzeichen, unsichtbare Zeichen werden entfernt und in Großbuchstaben umgewandelt.
 
@@ -74,9 +76,36 @@ finanzonline-uid check --interactive
 # Wiederholungsmodus: alle 5 Minuten wiederholen bis Erfolg
 finanzonline-uid check --interactive --retryminutes 5
 
+# Gültiges Ergebnis in Datei speichern (Standard: HTML-Format)
+finanzonline-uid check DE123456789 --outputdir /var/log/uid-checks/
+
+# Als JSON speichern
+finanzonline-uid check DE123456789 --outputdir /var/log/uid-checks/ --outputformat json
+
+# Als Textdatei speichern
+finanzonline-uid check DE123456789 --outputdir /var/log/uid-checks/ --outputformat txt
+
 # Mit Profil
 finanzonline-uid --profile production check DE123456789
 ```
+
+**Dateiausgabe (`--outputdir` und `--outputformat`):**
+
+Wenn `--outputdir` angegeben ist und die UID-Prüfung gültig ist (return_code=0), wird das Ergebnis in eine Datei gespeichert:
+
+- Dateinamenformat: `<UID>_<JJJJ-MM-TT>.<ext>` (z.B. `DE123456789_2025-12-28.html`)
+- Erweiterung entspricht dem Format: `.json`, `.txt` oder `.html`
+- Überschreibt vorhandene Datei (eine Datei pro UID pro Tag pro Format)
+- Verzeichnis wird automatisch erstellt, falls nicht vorhanden
+- Kann auch über `finanzonline.output_dir` und `finanzonline.output_format` in der Konfigurationsdatei konfiguriert werden
+
+**Ausgabeformate:**
+
+| Format | Erweiterung | Beschreibung                                              |
+|--------|-------------|-----------------------------------------------------------|
+| `html` | `.html`     | Gestaltetes HTML-Dokument (Standard, ideal zur Archivierung) |
+| `json` | `.json`     | Strukturierte JSON-Daten (für programmatische Verwendung) |
+| `txt`  | `.txt`      | Klartext, menschenlesbar                                  |
 
 **Wiederholungsmodus (`--retryminutes`):**
 

@@ -58,11 +58,12 @@ class CliExitCode(IntEnum):
     QUERY_ERROR = 4
 
 
-class Severity(Enum):
+class Severity(str, Enum):
     """Severity levels for return codes.
 
     Used to classify the nature of each return code for
     appropriate handling and user notification.
+    Inherits from str for direct string comparison without .value access.
     """
 
     SUCCESS = "success"
@@ -71,10 +72,11 @@ class Severity(Enum):
     CRITICAL = "critical"
 
 
-class ReturnCode(Enum):
+class ReturnCode(IntEnum):
     """Known FinanzOnline return codes.
 
     Values correspond to the 'rc' field in UID query responses.
+    Inherits from IntEnum for direct integer comparison without .value access.
     """
 
     # Success
@@ -229,7 +231,7 @@ def is_success(code: int) -> bool:
         >>> is_success(1)
         False
     """
-    return code == ReturnCode.UID_VALID.value
+    return code == ReturnCode.UID_VALID
 
 
 def is_retryable(code: int) -> bool:

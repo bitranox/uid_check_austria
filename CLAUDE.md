@@ -10,6 +10,7 @@
 - Email notifications with HTML formatting
 - Result caching with configurable TTL
 - Rate limit tracking with warning emails
+- File output for valid results (`--outputdir` option)
 
 ## Session Initialization
 
@@ -90,7 +91,8 @@ finanzonline_uid/
 ├── CHANGELOG.md               # Version history
 ├── CONTRIBUTING.md            # Contribution guidelines
 ├── DEVELOPMENT.md             # Development setup guide
-├── INSTALL.md                 # Installation instructions
+├── INSTALL_en.md              # Installation instructions (English)
+├── INSTALL_de.md              # Installation instructions (German)
 ├── Makefile                   # Make targets for common tasks
 ├── pyproject.toml             # Project metadata & dependencies
 └── README.md                  # Project overview
@@ -159,6 +161,8 @@ Apply principles from `python_clean_architecture.md` when designing and implemen
 | `--no-email`     | Disable email notification                                 |
 | `--format`       | Output format: `human` or `json`                           |
 | `--recipient`    | Email recipient(s) - can specify multiple times            |
+| `--outputdir`    | Directory to save valid results as files (`-o`)            |
+| `--outputformat` | Output file format: `json`, `txt`, or `html`               |
 
 **UID Sanitization:** All UID inputs are automatically cleaned from copy-paste artifacts (whitespace, invisible characters) and normalized to uppercase.
 

@@ -167,6 +167,40 @@ class EmailConfig:
             raise_on_invalid_recipient=self.raise_on_invalid_recipient,
         )
 
+    @classmethod
+    def from_dict(cls, section: Mapping[str, Any]) -> EmailConfig:
+        """Create EmailConfig from a configuration section dictionary.
+
+        Handles optional values and type conversions for configuration data
+        typically from lib_layered_config.
+
+        Args:
+            section: Dictionary with email settings (smtp_hosts, from_address, etc.).
+
+        Returns:
+            Configured EmailConfig instance with defaults for missing values.
+
+        Example:
+            >>> section = {
+            ...     "smtp_hosts": ["smtp.example.com:587"],
+            ...     "from_address": "test@example.com"
+            ... }
+            >>> config = EmailConfig.from_dict(section)
+            >>> config.from_address
+            'test@example.com'
+        """
+        return cls(
+            smtp_hosts=parse_string_list(section.get("smtp_hosts", [])),
+            from_address=_parse_string(section.get("from_address"), "noreply@localhost"),
+            smtp_username=_parse_optional_string(section.get("smtp_username")),
+            smtp_password=_parse_optional_string(section.get("smtp_password")),
+            use_starttls=_parse_bool(section.get("use_starttls", True), True),
+            timeout=parse_float(section.get("timeout", 30.0), 30.0),
+            raise_on_missing_attachments=_parse_bool(section.get("raise_on_missing_attachments", True), True),
+            raise_on_invalid_recipient=_parse_bool(section.get("raise_on_invalid_recipient", True), True),
+            default_recipients=parse_string_list(section.get("default_recipients", [])),
+        )
+
 
 def _resolve_credentials(config: EmailConfig) -> tuple[str, str] | None:
     """Extract credentials tuple from config when both username and password exist."""
@@ -339,18 +373,7 @@ def load_email_config_from_dict(config_dict: Mapping[str, Any]) -> EmailConfig:
     """
     email_section_raw = config_dict.get("email", {})
     section: Mapping[str, Any] = cast(Mapping[str, Any], email_section_raw if isinstance(email_section_raw, dict) else {})
-
-    return EmailConfig(
-        smtp_hosts=parse_string_list(section.get("smtp_hosts", [])),
-        from_address=_parse_string(section.get("from_address"), "noreply@localhost"),
-        smtp_username=_parse_optional_string(section.get("smtp_username")),
-        smtp_password=_parse_optional_string(section.get("smtp_password")),
-        use_starttls=_parse_bool(section.get("use_starttls", True), True),
-        timeout=parse_float(section.get("timeout", 30.0), 30.0),
-        raise_on_missing_attachments=_parse_bool(section.get("raise_on_missing_attachments", True), True),
-        raise_on_invalid_recipient=_parse_bool(section.get("raise_on_invalid_recipient", True), True),
-        default_recipients=parse_string_list(section.get("default_recipients", [])),
-    )
+    return EmailConfig.from_dict(section)
 
 
 __all__ = [

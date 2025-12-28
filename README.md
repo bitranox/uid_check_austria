@@ -35,6 +35,7 @@ Die Verifizierung von UID-Nummern über das FinanzOnline-Webportal erfordert Anm
 - Automatische E-Mail-Benachrichtigungen mit HTML-Formatierung (standardmäßig aktiviert)
 - **Mehrsprachige Unterstützung** - Englisch, Deutsch, Spanisch, Französisch, Russisch
 - Menschenlesbare und JSON-Ausgabeformate
+- **Dateiausgabe** - gültige Ergebnisse als Textdateien speichern (`--outputdir`)
 - Ergebnis-Caching mit konfigurierbarer TTL (Standard: 48 Stunden)
 - Ratenlimit-Tracking mit Warn-E-Mails
 - **UID-Eingabe-Bereinigung** - automatische Entfernung von Copy-Paste-Artefakten (Leerzeichen, unsichtbare Zeichen)
@@ -93,6 +94,8 @@ Konfiguration über `finanzonline.ratelimit_queries` und `finanzonline.ratelimit
 > Dieses Dokument muss gemäß § 132 BAO (Bundesabgabenordnung) **ausgedruckt und als Nachweis** der UID-Verifizierung aufbewahrt werden.
 
 Der ausgedruckte Beleg dient als offizielle Dokumentation für Steuerprüfungen und muss gemäß den österreichischen Aufbewahrungsvorschriften aufbewahrt werden (üblicherweise 7 Jahre).
+
+**Automatischer Download:** Die Bestätigungsdokumente können automatisch aus der FinanzOnline Databox heruntergeladen werden mit [finanzonline_databox](https://github.com/bitranox/finanzonline_databox) (auch auf [PyPI](https://pypi.org/project/finanzonline_databox/) verfügbar).
 
 ---
 

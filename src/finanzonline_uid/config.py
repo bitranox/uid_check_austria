@@ -197,6 +197,23 @@ def _parse_ratelimit_file_path(raw: Any) -> Path:
     return _get_default_ratelimit_path()
 
 
+def _extract_config_section(config_dict: dict[str, Any], section: str) -> Mapping[str, Any]:
+    """Extract and validate a configuration section from config dict.
+
+    Safely retrieves a section from the config dictionary, ensuring the result
+    is always a valid Mapping even if the section is missing or has wrong type.
+
+    Args:
+        config_dict: Full configuration dictionary from Config.as_dict().
+        section: Name of the section to extract (e.g., "app", "finanzonline").
+
+    Returns:
+        Mapping of section contents, empty dict if section missing or invalid type.
+    """
+    raw = config_dict.get(section, {})
+    return cast(Mapping[str, Any], raw if isinstance(raw, dict) else {})
+
+
 @lru_cache(maxsize=1)
 def get_default_config_path() -> Path:
     """Return the path to the bundled default configuration file.
@@ -315,9 +332,7 @@ def load_app_config(config: Config) -> AppConfig:
     """
     from .i18n import DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES
 
-    config_dict = config.as_dict()
-    app_section_raw = config_dict.get("app", {})
-    app_section: Mapping[str, Any] = cast(Mapping[str, Any], app_section_raw if isinstance(app_section_raw, dict) else {})
+    app_section = _extract_config_section(config.as_dict(), "app")
 
     # Parse language with validation
     raw_language = app_section.get("language", DEFAULT_LANGUAGE)
@@ -345,6 +360,8 @@ class FinanzOnlineConfig:
         ratelimit_queries: Maximum API queries allowed in window (0 = disabled).
         ratelimit_hours: Sliding window duration in hours for rate limiting.
         ratelimit_file: Path to the rate limit tracking JSON file.
+        output_dir: Directory to save valid UID results as files.
+        output_format: Format for saved files (json, txt, html).
     """
 
     credentials: FinanzOnlineCredentials
@@ -358,6 +375,8 @@ class FinanzOnlineConfig:
     ratelimit_queries: int = 50
     ratelimit_hours: float = 24.0
     ratelimit_file: Path | None = None
+    output_dir: Path | None = None
+    output_format: str = "html"
 
 
 def load_finanzonline_config(config: Config) -> FinanzOnlineConfig:
@@ -376,9 +395,7 @@ def load_finanzonline_config(config: Config) -> FinanzOnlineConfig:
         >>> config = get_config()  # doctest: +SKIP
         >>> fo_config = load_finanzonline_config(config)  # doctest: +SKIP
     """
-    config_dict = config.as_dict()
-    fo_section_raw = config_dict.get("finanzonline", {})
-    fo_section: Mapping[str, Any] = cast(Mapping[str, Any], fo_section_raw if isinstance(fo_section_raw, dict) else {})
+    fo_section = _extract_config_section(config.as_dict(), "finanzonline")
 
     # Required credentials
     tid = fo_section.get("tid", "")
@@ -438,6 +455,14 @@ def load_finanzonline_config(config: Config) -> FinanzOnlineConfig:
     ratelimit_hours = parse_float(fo_section.get("ratelimit_hours", 24.0), 24.0)
     ratelimit_file = _parse_ratelimit_file_path(fo_section.get("ratelimit_file"))
 
+    # Parse output directory - defaults to empty (disabled)
+    output_dir_raw = fo_section.get("output_dir", "")
+    output_dir = Path(output_dir_raw) if output_dir_raw else None
+
+    # Parse output format - defaults to html, validate against allowed values
+    output_format_raw = str(fo_section.get("output_format", "html")).lower()
+    output_format = output_format_raw if output_format_raw in ("json", "txt", "html") else "html"
+
     return FinanzOnlineConfig(
         credentials=credentials,
         uid_tn=uid_tn_str,
@@ -450,6 +475,8 @@ def load_finanzonline_config(config: Config) -> FinanzOnlineConfig:
         ratelimit_queries=ratelimit_queries,
         ratelimit_hours=ratelimit_hours,
         ratelimit_file=ratelimit_file,
+        output_dir=output_dir,
+        output_format=output_format,
     )
 
 

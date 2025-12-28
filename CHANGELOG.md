@@ -5,6 +5,66 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 
 
+## [2.5.0] - 2025-12-28
+
+### Added
+
+- **Per-UID rate limiting**: New `per_uid_limit` parameter (default: 2) to track per-UID query counts matching BMF service limits:
+  - New `PerUidRateLimitStatus` dataclass with `uid`, `uid_count`, `per_uid_limit`, `is_uid_exceeded` fields
+  - New `get_uid_status(uid)` method on `RateLimitTracker` to check per-UID limits
+  - Exported from `adapters.ratelimit` module
+
+- **Max entries limits**: Cache and rate-limit files now enforce maximum entry limits to prevent unbounded growth:
+  - `UidResultCache`: `max_entries=1000` parameter with auto-cleanup of oldest entries
+  - `RateLimitTracker`: `max_entries=10000` parameter with auto-cleanup of oldest entries
+
+- **CLI error formatters**: New functions in `adapters.output.formatters`:
+  - `format_error_human()` - Colored console output for errors with ANSI codes
+  - `format_error_json()` - Structured JSON error output for programmatic use
+
+### Changed
+
+- **Code architecture improvements** (internal, no API changes):
+  - Added `CliContext` dataclass to replace untyped `ctx.obj` dict in CLI
+  - Added `_extract_config_section()` helper in `config.py` to eliminate duplicated dict extraction logic
+  - Enhanced `CacheEntry` dataclass with `to_dict()`, `from_dict()`, `to_result()`, `from_result()`, and `is_expired()` methods
+  - Created `RateLimitEntry` dataclass with `to_dict()`/`from_dict()` methods for typed rate limit tracking
+  - Added `EmailConfig.from_dict()` classmethod to consolidate parsing logic
+  - Created `SoapLoginResponse` and `SoapUidQueryResponse` dataclasses with `from_zeep()` classmethods for typed SOAP response handling
+  - Replaced magic return code numbers with `ReturnCode` enum in `session_client.py` and `uid_query_client.py`
+  - Fixed enum docstring examples to show direct comparison instead of `.value` access
+
+- **Module reorganization** (internal, no API changes):
+  - Extracted shared HTML formatting to new `adapters/formatting/` module:
+    - `html_templates.py` - HTML constants, colors, styles, and helper functions
+    - `result_html.py` - `format_result_html()` function
+  - Split email adapter into focused modules:
+    - `plain_formatter.py` - Plain text formatters for results and errors
+    - `error_html_formatter.py` - HTML error notification formatter
+    - `rate_limit_formatter.py` - Rate limit warning formatters (plain and HTML)
+  - Centralized SOAP response extraction to `domain/soap_utils.py` with `extract_string_attr()` function
+
+### Fixed
+
+- **Security: Credential masking consistency**: Applied `_mask_credential()` to TID and BENID in session client debug logs, matching the masking already applied to PIN and session ID
+
+### Documentation
+
+- Added reference to [finanzonline_databox](https://github.com/bitranox/finanzonline_databox) for automatic download of confirmation documents from FinanzOnline Databox
+
+## [2.4.0] - 2025-12-28
+
+### Added
+
+- **File output option** (`--outputdir`): New option to save valid UID verification results to text files:
+  - Filename format: `<UID>_<YYYY-MM-DD>.txt` (e.g., `DE123456789_2025-12-28.txt`)
+  - Only valid results (return_code=0) are saved
+  - One file per UID per day (overwrites if exists)
+  - Directory is auto-created if it doesn't exist
+  - Can be set via CLI (`--outputdir`) or config (`finanzonline.output_dir`)
+  - Graceful error handling: filesystem errors (permissions, disk full) show a warning but don't fail the UID check
+  - Example: `finanzonline-uid check DE123456789 --outputdir /var/log/uid-checks/`
+
 ## [2.3.0] - 2025-12-28
 
 ### Fixed

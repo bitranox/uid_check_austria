@@ -40,6 +40,8 @@ finanzonline-uid check [OPTIONS] [UID]
 | `--format`       | -     | `human`        | Output format: `human` or `json`                        |
 | `--recipient`    | -     | Config default | Email recipient (can specify multiple times)            |
 | `--retryminutes` | -     | `None`         | Retry interval in minutes (requires `--interactive`)    |
+| `--outputdir`    | `-o`  | Config default | Directory to save valid results as files                |
+| `--outputformat` | -     | `html`         | Output file format: `json`, `txt`, or `html`            |
 
 > **Note:** UID inputs are automatically sanitized: whitespace and invisible characters are removed, and converted to uppercase.
 
@@ -74,9 +76,36 @@ finanzonline-uid check --interactive
 # Retry mode: retry every 5 minutes until success
 finanzonline-uid check --interactive --retryminutes 5
 
+# Save valid result to file (default: HTML format)
+finanzonline-uid check DE123456789 --outputdir /var/log/uid-checks/
+
+# Save as JSON
+finanzonline-uid check DE123456789 --outputdir /var/log/uid-checks/ --outputformat json
+
+# Save as plain text
+finanzonline-uid check DE123456789 --outputdir /var/log/uid-checks/ --outputformat txt
+
 # With profile
 finanzonline-uid --profile production check DE123456789
 ```
+
+**File Output (`--outputdir` and `--outputformat`):**
+
+When `--outputdir` is specified and the UID check is valid (return_code=0), the result is saved to a file:
+
+- Filename format: `<UID>_<YYYY-MM-DD>.<ext>` (e.g., `DE123456789_2025-12-28.html`)
+- Extension matches the format: `.json`, `.txt`, or `.html`
+- Overwrites existing file if present (one file per UID per day per format)
+- Directory is created automatically if it doesn't exist
+- Can also be configured via `finanzonline.output_dir` and `finanzonline.output_format` in config file
+
+**Output formats:**
+
+| Format | Extension | Description                                        |
+|--------|-----------|---------------------------------------------------|
+| `html` | `.html`   | Styled HTML document (default, best for archiving) |
+| `json` | `.json`   | Structured JSON data (for programmatic use)        |
+| `txt`  | `.txt`    | Plain text, human-readable                         |
 
 **Retry Mode (`--retryminutes`):**
 

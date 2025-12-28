@@ -18,8 +18,11 @@ System Role:
 from __future__ import annotations
 
 import logging
+import re
 import time
 from collections.abc import Sequence
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Final
 
 import rich_click as click
@@ -38,7 +41,7 @@ from .adapters.finanzonline import FinanzOnlineQueryClient, FinanzOnlineSessionC
 from .adapters.cache import UidResultCache
 from .adapters.notification import EmailNotificationAdapter
 from .adapters.ratelimit import RateLimitTracker
-from .adapters.output import format_human, format_json
+from .adapters.output import format_html, format_human, format_json
 from .application.use_cases import CheckUidUseCase
 from .behaviors import emit_greeting, noop_main, raise_intentional_failure
 from .config import FinanzOnlineConfig, get_config, load_app_config, load_finanzonline_config
@@ -59,8 +62,34 @@ TRACEBACK_SUMMARY_LIMIT: Final[int] = 500
 #: Character budget used when verbose tracebacks are enabled.
 TRACEBACK_VERBOSE_LIMIT: Final[int] = 10_000
 TracebackState = tuple[bool, bool]
+#: Pattern for ANSI escape codes (used for stripping colors from file output).
+_ANSI_PATTERN: Final[re.Pattern[str]] = re.compile(r"\033\[[0-9;]*m")
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(slots=True)
+class CliContext:
+    """Typed Click context object for passing state between commands.
+
+    Replaces untyped dict access with typed field access.
+    """
+
+    config: Config
+    profile: str | None = None
+    traceback: bool = False
+
+
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI escape codes from text.
+
+    Args:
+        text: Text potentially containing ANSI color codes.
+
+    Returns:
+        Clean text without ANSI escape sequences.
+    """
+    return _ANSI_PATTERN.sub("", text)
 
 
 def apply_traceback_preferences(enabled: bool) -> None:
@@ -115,10 +144,7 @@ def _store_cli_context(
         config: Loaded layered configuration object for all subcommands.
         profile: Optional configuration profile name.
     """
-    ctx.ensure_object(dict)
-    ctx.obj["traceback"] = traceback
-    ctx.obj["config"] = config
-    ctx.obj["profile"] = profile
+    ctx.obj = CliContext(config=config, profile=profile, traceback=traceback)
 
 
 def _run_cli(argv: Sequence[str] | None) -> int:
@@ -231,8 +257,8 @@ def cli_fail() -> None:
 @cli.command("config", context_settings=CLICK_CONTEXT_SETTINGS)
 @click.option(
     "--format",
-    type=click.Choice([f.value for f in OutputFormat], case_sensitive=False),
-    default=OutputFormat.HUMAN.value,
+    type=click.Choice([f for f in OutputFormat], case_sensitive=False),
+    default=OutputFormat.HUMAN,
     help=_("Output format (human-readable or JSON)"),
 )
 @click.option(
@@ -257,27 +283,31 @@ def cli_config(ctx: click.Context, format: str, section: str | None, profile: st
     Precedence: defaults -> app -> host -> user -> dotenv -> env
     """
     # Use config from context; reload if profile override specified
+    cli_ctx: CliContext = ctx.obj
     if profile:
         config = get_config(profile=profile)
         effective_profile = profile
     else:
-        config = ctx.obj["config"]
-        effective_profile = ctx.obj.get("profile")
+        config = cli_ctx.config
+        effective_profile = cli_ctx.profile
 
     output_format = OutputFormat(format.lower())
-    extra = {"command": "config", "format": output_format.value, "profile": effective_profile}
+    extra = {"command": "config", "format": output_format, "profile": effective_profile}
     with lib_log_rich.runtime.bind(job_id="cli-config", extra=extra):
-        logger.info("Displaying configuration", extra={"format": output_format.value, "section": section, "profile": effective_profile})
+        logger.info("Displaying configuration", extra={"format": output_format, "section": section, "profile": effective_profile})
         display_config(config, format=output_format, section=section)
 
 
-def _display_deploy_result(deployed_paths: list[Any], effective_profile: str | None) -> None:
+def _display_deploy_result(deployed_paths: list[Any], effective_profile: str | None, *, force: bool = False) -> None:
     """Display deployment result to user."""
     if deployed_paths:
         profile_msg = f" ({_('profile')}: {effective_profile})" if effective_profile else ""
         click.echo(f"\n{_('Configuration deployed successfully')}{profile_msg}:")
         for path in deployed_paths:
             click.echo(f"  ✓ {path}")
+    elif force:
+        # Force was used but nothing deployed - content is identical
+        click.echo(f"\n{_('All configuration files are already up to date (content unchanged).')}")
     else:
         click.echo(f"\n{_('No files were created (all target files already exist).')}")
         click.echo(_("Use --force to overwrite existing configuration files."))
@@ -299,7 +329,7 @@ def _handle_deploy_error(exc: Exception) -> None:
 @click.option(
     "--target",
     "targets",
-    type=click.Choice([t.value for t in DeployTarget], case_sensitive=False),
+    type=click.Choice([t for t in DeployTarget], case_sensitive=False),
     multiple=True,
     required=True,
     help=_("Target configuration layer(s) to deploy to (can specify multiple)"),
@@ -329,17 +359,18 @@ def cli_config_deploy(ctx: click.Context, targets: tuple[str, ...], force: bool,
 
     By default, existing files are not overwritten. Use --force to overwrite.
     """
-    effective_profile = profile if profile else ctx.obj.get("profile")
+    cli_ctx: CliContext = ctx.obj
+    effective_profile = profile if profile else cli_ctx.profile
     deploy_targets = tuple(DeployTarget(t.lower()) for t in targets)
-    target_values = tuple(t.value for t in deploy_targets)
-    extra = {"command": "config-deploy", "targets": target_values, "force": force, "profile": effective_profile}
+    target_strs = tuple(t for t in deploy_targets)
+    extra = {"command": "config-deploy", "targets": target_strs, "force": force, "profile": effective_profile}
 
     with lib_log_rich.runtime.bind(job_id="cli-config-deploy", extra=extra):
-        logger.info("Deploying configuration", extra={"targets": target_values, "force": force, "profile": effective_profile})
+        logger.info("Deploying configuration", extra={"targets": target_strs, "force": force, "profile": effective_profile})
 
         try:
             deployed_paths = deploy_configuration(targets=deploy_targets, force=force, profile=effective_profile)
-            _display_deploy_result(deployed_paths, effective_profile)
+            _display_deploy_result(deployed_paths, effective_profile, force=force)
         except Exception as exc:
             _handle_deploy_error(exc)
 
@@ -435,6 +466,47 @@ def _output_check_result(result: Any, output_format: str) -> None:
         click.echo(format_json(result))
     else:
         click.echo(format_human(result))
+
+
+def _save_result_to_file(result: Any, outputdir: Path, file_format: str) -> None:
+    """Save valid UID result to file in the output directory.
+
+    Creates a file named <UID>_<YYYY-MM-DD>.<ext> with the result in the
+    specified format. Only called for valid UIDs (return_code == 0).
+    Overwrites existing file if present (one file per UID per day).
+    Creates the output directory if it doesn't exist.
+
+    On filesystem errors (permissions, disk full, etc.), logs a warning but
+    does not raise - the UID check succeeded and should not be marked as failed.
+
+    Args:
+        result: UidCheckResult to save.
+        outputdir: Directory to save the file in.
+        file_format: Format for file content ("json", "txt", "html").
+    """
+    date_str = result.timestamp.strftime("%Y-%m-%d")
+    filename = f"{result.uid}_{date_str}.{file_format}"
+    filepath = outputdir / filename
+
+    try:
+        # Create directory if it doesn't exist
+        outputdir.mkdir(parents=True, exist_ok=True)
+
+        # Format content based on file_format
+        if file_format == "json":
+            content = format_json(result)
+        elif file_format == "html":
+            content = format_html(result)
+        else:  # txt
+            content = _strip_ansi(format_human(result))
+
+        filepath.write_text(content, encoding="utf-8")
+
+        click.echo(_("Result saved to: {filepath}").format(filepath=filepath))
+    except OSError as exc:
+        # Log warning but don't fail - the UID check itself succeeded
+        warning_msg = _("Warning: Could not save result to {filepath}: {error}").format(filepath=filepath, error=exc)
+        click.echo(warning_msg, err=True)
 
 
 def _handle_check_error(
@@ -655,6 +727,20 @@ def _execute_retry_loop(
     default=None,
     help=_("Retry interval in minutes until check succeeds or canceled (interactive mode only)"),
 )
+@click.option(
+    "--outputdir",
+    "-o",
+    type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
+    default=None,
+    help=_("Directory to save valid UID results as files (overrides config)"),
+)
+@click.option(
+    "--outputformat",
+    "file_format",
+    type=click.Choice(["json", "txt", "html"], case_sensitive=False),
+    default=None,
+    help=_("Output file format: json, txt, or html (default: html)"),
+)
 @click.pass_context
 def cli_check(
     ctx: click.Context,
@@ -664,6 +750,8 @@ def cli_check(
     output_format: str,
     recipients: tuple[str, ...],
     retryminutes: float | None,
+    outputdir: Path | None,
+    file_format: str | None,
 ) -> None:
     """Verify an EU VAT ID via FinanzOnline Level 2 query.
 
@@ -694,7 +782,8 @@ def cli_check(
         raise SystemExit(CliExitCode.CONFIG_ERROR)
 
     resolved_uid = _resolve_uid_input(uid, interactive)
-    config: Config = ctx.obj["config"]
+    cli_ctx: CliContext = ctx.obj
+    config: Config = cli_ctx.config
     recipients_list = list(recipients)
     fo_config: FinanzOnlineConfig | None = None
 
@@ -705,6 +794,10 @@ def cli_check(
             fo_config = load_finanzonline_config(config)
             logger.info("FinanzOnline configuration loaded", extra={"uid_tn": fo_config.uid_tn})
 
+            # Resolve output settings (CLI overrides config)
+            effective_outputdir = outputdir or fo_config.output_dir
+            effective_file_format = (file_format or fo_config.output_format).lower()
+
             if retryminutes is not None:
                 # Retry mode - uses retry loop with countdown animation
                 result, error_info = _execute_retry_loop(fo_config, resolved_uid, retryminutes, config, recipients_list)
@@ -712,6 +805,8 @@ def cli_check(
                 if result is not None:
                     # Success!
                     _output_check_result(result, output_format)
+                    if effective_outputdir and result.is_valid:
+                        _save_result_to_file(result, effective_outputdir, effective_file_format)
                     if not no_email:
                         _send_check_notification(config=config, fo_config=fo_config, result=result, recipients=recipients_list)
                     raise SystemExit(CliExitCode.SUCCESS if result.is_valid else CliExitCode.UID_INVALID)
@@ -729,6 +824,9 @@ def cli_check(
                 # Single attempt mode (existing behavior)
                 result = _execute_uid_check(fo_config, resolved_uid, config=config, recipients=recipients_list)
                 _output_check_result(result, output_format)
+
+                if effective_outputdir and result.is_valid:
+                    _save_result_to_file(result, effective_outputdir, effective_file_format)
 
                 if not no_email:
                     _send_check_notification(config=config, fo_config=fo_config, result=result, recipients=recipients_list)
