@@ -5,6 +5,14 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 
 
+## [2.5.3] - 2025-12-29
+
+### Changed
+
+- **Dependencies updated**:
+  - `lib_log_rich` minimum version bumped from 6.0.0 to 6.1.0
+  - `lib_layered_config` minimum version bumped from 5.1.0 to 5.2.0
+
 ## [2.5.2] - 2025-12-28
 
 ### Changed

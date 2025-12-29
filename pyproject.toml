@@ -1,14 +1,14 @@
 [project]
 name = "finanzonline_uid"
-version = "2.5.2"
+version = "2.5.3"
 description = "Python library and CLI for querying Level 2 UID checks via FinanzOnline Austria"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "rich-click>=1.9.5",
     "lib_cli_exit_tools>=2.2.3",
-    "lib_log_rich>=6.0.0",
-    "lib_layered_config>=5.1.0",
+    "lib_log_rich>=6.1.0",
+    "lib_layered_config>=5.2.0",
     "btx_lib_mail>=1.0.3",
     "zeep>=4.3.2",
     "filelock>=3.20.1",
