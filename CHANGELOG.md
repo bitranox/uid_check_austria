@@ -5,6 +5,12 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 
 
+## [2.5.4] - 2026-01-01
+
+### Fixed
+
+- **Test brittleness**: Fixed `test_oldest_entries_trimmed_when_limit_exceeded` to use dynamically calculated timestamps instead of hardcoded dates. Previously used expiration dates in the past (`2025-12-31`) which caused entries to be cleaned up as expired before the trimming logic could run.
+
 ## [2.5.3] - 2025-12-29
 
 ### Changed

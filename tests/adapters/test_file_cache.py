@@ -11,7 +11,7 @@ Tests cover:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import orjson
@@ -369,6 +369,10 @@ class TestCacheMaxEntries:
         """Oldest entries are removed when max_entries is exceeded."""
         cache = UidResultCache(cache_file=cache_file, cache_hours=24.0, max_entries=3)
 
+        # Calculate dynamic timestamps to avoid test brittleness
+        now = datetime.now(timezone.utc)
+        expires_at = (now + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
         # Pre-populate with 3 entries (at the limit)
         existing_data = {
             "UID001": {
@@ -377,8 +381,8 @@ class TestCacheMaxEntries:
                 "message": "Valid",
                 "name": "",
                 "address": None,
-                "queried_at": "2025-01-01T10:00:00Z",  # Oldest
-                "expires_at": "2025-12-31T00:00:00Z",
+                "queried_at": (now - timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),  # Oldest
+                "expires_at": expires_at,
             },
             "UID002": {
                 "uid": "UID002",
@@ -386,8 +390,8 @@ class TestCacheMaxEntries:
                 "message": "Valid",
                 "name": "",
                 "address": None,
-                "queried_at": "2025-01-01T11:00:00Z",  # Middle
-                "expires_at": "2025-12-31T00:00:00Z",
+                "queried_at": (now - timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%SZ"),  # Middle
+                "expires_at": expires_at,
             },
             "UID003": {
                 "uid": "UID003",
@@ -395,8 +399,8 @@ class TestCacheMaxEntries:
                 "message": "Valid",
                 "name": "",
                 "address": None,
-                "queried_at": "2025-01-01T12:00:00Z",  # Newest
-                "expires_at": "2025-12-31T00:00:00Z",
+                "queried_at": (now - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"),  # Newest
+                "expires_at": expires_at,
             },
         }
         cache_file.parent.mkdir(parents=True, exist_ok=True)
